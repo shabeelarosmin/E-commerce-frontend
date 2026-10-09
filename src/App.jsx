@@ -1,10 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import DashboardRoutes from "./dashboard/routes/DashboardRoutes";
 import WebsiteRoutes from "./website/routes/WebsiteRoutes";
-
-function DashboardHome() {
-  return <h1>Admin Dashboard</h1>;
-}
 
 function App() {
   return (
@@ -14,7 +11,7 @@ function App() {
         <Route path="/*" element={<WebsiteRoutes />} />
 
         {/* ADMIN DASHBOARD */}
-        <Route path="/dashboard/*" element={<DashboardHome />} />
+        <Route path="/dashboard/*" element={<DashboardRoutes />} />
       </Routes>
     </BrowserRouter>
   );

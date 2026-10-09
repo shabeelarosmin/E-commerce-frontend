@@ -1,17 +1,43 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8000/api/website/product-variant";
+const API_URL = "http://localhost:8000/api/dashboard/product-variant";
 
-// GET ALL PRODUCT VARIANTS
+const getAuthConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
+
+// GET ALL VARIANTS
 export const getProductVariants = async () => {
-  const response = await axios.get(API_URL);
-
+  const response = await axios.get(API_URL, getAuthConfig());
   return response.data;
 };
 
-// GET SINGLE PRODUCT VARIANT
+// GET SINGLE VARIANT
 export const getProductVariant = async (id) => {
-  const response = await axios.get(`${API_URL}/${id}`);
+  const response = await axios.get(`${API_URL}/${id}`, getAuthConfig());
+  return response.data;
+};
 
+// CREATE VARIANT
+export const createProductVariant = async (variantData) => {
+  const response = await axios.post(API_URL, variantData, getAuthConfig());
+  return response.data;
+};
+
+// UPDATE VARIANT
+export const updateProductVariant = async (id, variantData) => {
+  const response = await axios.put(
+    `${API_URL}/${id}`,
+    variantData,
+    getAuthConfig(),
+  );
+  return response.data;
+};
+
+// DELETE VARIANT
+export const deleteProductVariant = async (id) => {
+  const response = await axios.delete(`${API_URL}/${id}`, getAuthConfig());
   return response.data;
 };
