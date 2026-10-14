@@ -473,7 +473,7 @@ function Products() {
       </section>
 
       <footer className="fashion-footer">
-        <span>ATELIER · FASHION ADMIN</span>
+        <span>ÉLORA · FASHION ADMIN</span>
         <span>Designed with care ✦</span>
       </footer>
     </div>
