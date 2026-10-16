@@ -27,6 +27,7 @@ export const createCategory = async (categoryData) => {
   return response.data;
 };
 
+// Admin - Update category
 export const updateCategory = async (id, categoryData) => {
   const response = await axios.put(
     `${ADMIN_API}/${id}`,
@@ -36,6 +37,7 @@ export const updateCategory = async (id, categoryData) => {
   return response.data;
 };
 
+// Admin - Delete category
 export const deleteCategory = async (id) => {
   const response = await axios.delete(`${ADMIN_API}/${id}`, getAuthConfig());
   return response.data;

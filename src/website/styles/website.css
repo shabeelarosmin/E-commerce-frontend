@@ -1,12 +1,11 @@
-
 /* ELORA WEBSITE — BEIGE, TAUPE & BROWN */
 
 .elora-home {
-  --elora-beige: #E8DDD0;
-  --elora-taupe: #B69A7D;
+  --elora-beige: #e8ddd0;
+  --elora-taupe: #b69a7d;
   --elora-brown: #806044;
   --elora-dark: #292421;
-  --elora-white: #FFFDFA;
+  --elora-white: #fffdfa;
 
   color: var(--elora-dark);
   background: var(--elora-white);
@@ -481,4 +480,54 @@
   .elora-home .elora-bottom-banner {
     padding: 55px 20px;
   }
+}
+.elora-home .elora-no-image {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  background: #e8ddd0;
+  color: #806044;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.elora-home .elora-no-image span {
+  font-family: Georgia, serif;
+  font-size: 27px;
+  letter-spacing: 5px;
+}
+
+.elora-home .elora-no-image p {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.elora-home .elora-category-placeholder,
+.elora-home .elora-product-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  background: #e8ddd0;
+  color: #806044;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.elora-home .elora-category-placeholder span,
+.elora-home .elora-product-placeholder span {
+  font-family: Georgia, serif;
+  font-size: 25px;
+  letter-spacing: 5px;
+}
+
+.elora-home .elora-category-placeholder p,
+.elora-home .elora-product-placeholder p {
+  margin-top: 10px;
+  color: #806044;
 }
