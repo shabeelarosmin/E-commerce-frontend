@@ -110,7 +110,7 @@ function ProductCard({ product, isWishlisted, onToggleWishlist, onQuickView }) {
     <article className="group min-w-0">
       <div className="relative aspect-[3/4] overflow-hidden bg-[#EAE0D4]">
         <Link
-          to={`/product/${id}`}
+          to={`/products/${product._id}`}
           aria-label={`View ${product.name}`}
           className="absolute inset-0"
         >
@@ -157,7 +157,7 @@ function ProductCard({ product, isWishlisted, onToggleWishlist, onQuickView }) {
         </button>
 
         <Link
-          to={`/product/${id}`}
+          to={`/products/${id}`}
           className="absolute inset-x-0 bottom-0 hidden translate-y-full bg-[#544339]/95 py-4 text-center text-[9px] tracking-[0.22em] text-[#F8F4EE] transition-transform duration-300 group-hover:translate-y-0 md:block"
         >
           DISCOVER PIECE
@@ -171,7 +171,7 @@ function ProductCard({ product, isWishlisted, onToggleWishlist, onQuickView }) {
           </p>
         )}
 
-        <Link to={`/product/${id}`}>
+        <Link to={`/products/${id}`}>
           <h2 className="line-clamp-1 font-serif text-base text-[#544339] transition hover:text-[#8A6C5F] sm:text-lg">
             {product.name}
           </h2>
@@ -195,7 +195,7 @@ function ProductCard({ product, isWishlisted, onToggleWishlist, onQuickView }) {
         </div>
 
         <Link
-          to={`/product/${id}`}
+          to={`/products/${id}`}
           className="mt-4 inline-flex items-center gap-2 border-b border-[#BFA38A] pb-1 text-[9px] tracking-[0.16em] text-[#8A6C5F] transition hover:border-[#544339] hover:text-[#544339]"
         >
           VIEW DETAILS <span>↗</span>
@@ -265,7 +265,7 @@ function QuickView({ product, onClose }) {
           </p>
 
           <Link
-            to={`/product/${getProductId(product)}`}
+            to={`/products/${getProductId(product)}`}
             onClick={onClose}
             className="mt-7 inline-flex items-center justify-center gap-3 bg-[#544339] px-5 py-4 text-[9px] tracking-[0.18em] text-[#F8F4EE] transition hover:bg-[#8A6C5F]"
           >

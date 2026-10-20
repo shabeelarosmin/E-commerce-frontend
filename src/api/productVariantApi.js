@@ -41,3 +41,12 @@ export const deleteProductVariant = async (id) => {
   const response = await axios.delete(`${API_URL}/${id}`, getAuthConfig());
   return response.data;
 };
+// PUBLIC WEBSITE API
+const WEBSITE_API_URL =
+  "http://localhost:8000/api/website/product-variant";
+
+export const getWebsiteProductVariants = async () => {
+  const response = await axios.get(WEBSITE_API_URL);
+  return response.data;
+};
+

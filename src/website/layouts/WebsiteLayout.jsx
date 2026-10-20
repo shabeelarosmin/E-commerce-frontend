@@ -1,21 +1,15 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import Navbar from "../components/Navbar.jsx";
 
 function WebsiteLayout() {
   return (
-    <>
-      <header>
-        <h2>E-Commerce</h2>
-
-        <nav>
-          <Link to="/">Home</Link> <Link to="/products">Products</Link>{" "}
-          <Link to="/login">Login</Link> <Link to="/cart">Cart</Link>
-        </nav>
-      </header>
+    <div className="min-h-screen bg-[#F8F4EE]">
+      <Navbar />
 
       <main>
         <Outlet />
       </main>
-    </>
+    </div>
   );
 }
 

@@ -309,7 +309,7 @@ function Home() {
 
         <div className="relative min-h-[350px] bg-[#8A6C5F] lg:min-h-[620px]">
           <img
-            src="/images/home-banner.jpg"
+            src="/images/hero.jpg.jfif"
             alt="ÉLORA fashion collection"
             className="absolute inset-0 h-full w-full object-cover"
             onError={(event) => {
