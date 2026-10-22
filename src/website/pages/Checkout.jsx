@@ -464,8 +464,29 @@ function Checkout() {
                           }
                           className="flex gap-4"
                         >
-                          <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded-xl bg-[#F3E8D3]/60">
-                            <ShoppingBag size={23} className="text-[#BFA38A]" />
+                          <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F8F4EE]">
+                            <img
+                              src={
+                                item.productId?.images?.[0]
+                                  ? item.productId.images[0].startsWith("http")
+                                    ? item.productId.images[0]
+                                    : `http://localhost:8000${item.productId.images[0]}`
+                                  : item.product?.images?.[0]
+                                    ? item.product.images[0].startsWith("http")
+                                      ? item.product.images[0]
+                                      : `http://localhost:8000${item.product.images[0]}`
+                                    : ""
+                              }
+                              alt={
+                                item.productId?.name ||
+                                item.product?.name ||
+                                "Product"
+                              }
+                              className="h-full w-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
                           </div>
 
                           <div className="min-w-0 flex-1">

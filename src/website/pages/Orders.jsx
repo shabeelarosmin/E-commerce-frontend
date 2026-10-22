@@ -22,7 +22,10 @@ const formatDate = (date) => {
   if (!date) return "Date unavailable";
 
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "Date unavailable";
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "Date unavailable";
+  }
 
   return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -37,17 +40,207 @@ const getStatusStyle = (status = "") => {
   if (value === "delivered") {
     return "bg-green-50 text-green-800 border-green-200";
   }
+
   if (value === "cancelled" || value === "canceled") {
     return "bg-red-50 text-red-700 border-red-200";
   }
+
   if (value === "shipped" || value === "out_for_delivery") {
     return "bg-blue-50 text-blue-700 border-blue-200";
   }
+
   if (value === "confirmed" || value === "placed") {
     return "bg-[#F3E8D3] text-[#795C45] border-[#D9C3A8]";
   }
 
   return "bg-[#E0D9CF]/40 text-[#544339] border-[#E0D9CF]";
+};
+
+const trackingSteps = [
+  { key: "placed", label: "Order Placed", icon: CheckCircle2 },
+  { key: "confirmed", label: "Confirmed", icon: Package },
+  { key: "shipped", label: "Shipped", icon: Truck },
+  { key: "out_for_delivery", label: "Out for Delivery", icon: MapPin },
+  { key: "delivered", label: "Delivered", icon: CheckCircle2 },
+];
+
+const getTrackingStep = (status = "") => {
+  const value = status.toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
+
+  const statusSteps = {
+    placed: 0,
+    pending: 0,
+    confirmed: 1,
+    processing: 1,
+    packed: 1,
+    shipped: 2,
+    out_for_delivery: 3,
+    delivered: 4,
+  };
+
+  return statusSteps[value] ?? -1;
+};
+
+function OrderTracking({ status }) {
+  const normalizedStatus = (status || "")
+    .toLowerCase()
+    .replaceAll("-", "_")
+    .replaceAll(" ", "_");
+
+  const cancelled = ["cancelled", "canceled"].includes(normalizedStatus);
+  const currentStep = getTrackingStep(normalizedStatus);
+
+  if (cancelled) {
+    return (
+      <div className="my-6 border border-red-200 bg-red-50 p-4">
+        <div className="flex items-center gap-3 text-red-700">
+          <XCircle size={22} />
+          <div>
+            <p className="font-medium">Order Cancelled</p>
+            <p className="mt-1 text-xs">
+              This order is no longer being processed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="my-6 border border-[#E0D9CF] bg-white/60 p-4 sm:p-6">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] tracking-[0.18em] text-[#8A6C5F]">
+            ORDER JOURNEY
+          </p>
+          <h3 className="mt-1 font-serif text-xl">Track your order</h3>
+        </div>
+
+        <span className="border border-[#D9C3A8] bg-[#F3E8D3] px-3 py-2 text-[10px] uppercase tracking-wide text-[#795C45]">
+          {status?.replaceAll("_", " ") || "Processing"}
+        </span>
+      </div>
+
+      {currentStep === -1 ? (
+        <p className="text-sm text-[#8A6C5F]">
+          Tracking progress is not available for this status yet.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-5">
+          {trackingSteps.map((step, index) => {
+            const StepIcon = step.icon;
+            const completed = index <= currentStep;
+            const current = index === currentStep;
+
+            return (
+              <div key={step.key} className="relative">
+                <div className="flex items-center sm:flex-col sm:items-center sm:text-center">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
+                      completed
+                        ? "border-[#544339] bg-[#544339] text-white"
+                        : "border-[#D9C3A8] bg-[#F8F4EE] text-[#A99A8C]"
+                    }`}
+                  >
+                    <StepIcon size={18} />
+                  </div>
+
+                  <div className="ml-3 sm:ml-0 sm:mt-3">
+                    <p
+                      className={`text-xs ${
+                        completed
+                          ? "font-semibold text-[#544339]"
+                          : "text-[#A99A8C]"
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+
+                    {current && (
+                      <p className="mt-1 text-[10px] text-[#8A6C5F]">
+                        Current status
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {index < trackingSteps.length - 1 && (
+                  <div
+                    className={`hidden h-px sm:absolute sm:left-[calc(50%+25px)] sm:top-5 sm:block sm:w-[calc(100%-30px)] ${
+                      index < currentStep ? "bg-[#544339]" : "bg-[#E0D9CF]"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const API_BASE_URL = "http://localhost:8000";
+
+const getProductImage = (item) => {
+  const product =
+    item?.productId && typeof item.productId === "object"
+      ? item.productId
+      : item?.product && typeof item.product === "object"
+        ? item.product
+        : null;
+
+  const variant =
+    item?.variantId && typeof item.variantId === "object"
+      ? item.variantId
+      : item?.variant && typeof item.variant === "object"
+        ? item.variant
+        : null;
+
+  const image =
+    product?.images?.[0]?.url ||
+    product?.images?.[0]?.image ||
+    product?.images?.[0] ||
+    product?.image ||
+    item?.images?.[0] ||
+    item?.image ||
+    variant?.images?.[0] ||
+    variant?.image ||
+    "";
+
+  if (!image || typeof image !== "string") {
+    return "/placeholder.png";
+  }
+
+  // Full URL already exists
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  // Local backend upload path
+  return `${API_BASE_URL}/${image.replace(/^\/+/, "")}`;
+};
+const getProductName = (item) => {
+  const product =
+    item?.productId && typeof item.productId === "object"
+      ? item.productId
+      : item?.product && typeof item.product === "object"
+        ? item.product
+        : null;
+
+  return product?.name || item?.name || item?.productName || "Product";
+};
+
+const getVariant = (item) => {
+  if (item?.variantId && typeof item.variantId === "object") {
+    return item.variantId;
+  }
+
+  if (item?.variant && typeof item.variant === "object") {
+    return item.variant;
+  }
+
+  return null;
 };
 
 function Orders() {
@@ -64,8 +257,12 @@ function Orders() {
     try {
       if (showRefresh) setRefreshing(true);
 
+      setIsError(false);
+
       const response = await getCustomerOrders();
+      console.log("CUSTOMER ORDERS:", JSON.stringify(response.data, null, 2));
       const result = response.data;
+
       const data = Array.isArray(result)
         ? result
         : Array.isArray(result?.data)
@@ -107,7 +304,9 @@ function Orders() {
       setIsError(false);
 
       const response = await cancelOrder(orderId);
+
       setMessage(response.message || "Order cancelled successfully.");
+
       await fetchOrders();
     } catch (error) {
       setIsError(true);
@@ -124,9 +323,11 @@ function Orders() {
       <main className="flex min-h-[70vh] items-center justify-center bg-[#F8F4EE] px-4">
         <div className="text-center">
           <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-2 border-[#E0D9CF] border-t-[#544339]" />
+
           <p className="font-serif text-xl text-[#544339]">
             Preparing your orders
           </p>
+
           <p className="mt-2 text-xs tracking-wider text-[#8A6C5F]">
             PLEASE WAIT A MOMENT
           </p>
@@ -143,10 +344,13 @@ function Orders() {
           <p className="text-[10px] tracking-[0.35em] text-[#8A6C5F]">
             YOUR ÉLORA EXPERIENCE
           </p>
+
           <h1 className="mt-4 font-serif text-4xl sm:text-5xl">My Orders</h1>
+
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#8A6C5F]">
             Every order, thoughtfully brought together in one place.
           </p>
+
           <div className="mx-auto mt-6 h-px w-16 bg-[#BFA38A]" />
         </header>
 
@@ -161,6 +365,7 @@ function Orders() {
             }`}
           >
             <span className="flex-1">{message}</span>
+
             <button
               type="button"
               onClick={() => setMessage("")}
@@ -178,6 +383,7 @@ function Orders() {
             <p className="text-[10px] tracking-[0.2em] text-[#8A6C5F]">
               ORDER HISTORY
             </p>
+
             <h2 className="mt-1 font-serif text-2xl">
               {orders.length} {orders.length === 1 ? "Order" : "Orders"}
             </h2>
@@ -200,11 +406,14 @@ function Orders() {
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#E0D9CF]/40 text-[#8A6C5F]">
               <ShoppingBag size={32} strokeWidth={1.2} />
             </div>
+
             <h2 className="mt-6 font-serif text-3xl">Nothing here just yet</h2>
+
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#8A6C5F]">
               Your next favourite find could be waiting for you. Explore our
               collection and discover your style.
             </p>
+
             <Link
               to="/products"
               className="mt-7 inline-flex items-center justify-center gap-3 bg-[#544339] px-7 py-4 text-[10px] tracking-[0.17em] text-[#F8F4EE] transition hover:bg-[#6B5145]"
@@ -217,6 +426,7 @@ function Orders() {
             {orders.map((order) => {
               const status = order.orderStatus || "processing";
               const shipping = order.shippingAddress;
+
               const canCancel = ["placed", "confirmed"].includes(
                 status.toLowerCase(),
               );
@@ -232,13 +442,16 @@ function Orders() {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#E0D9CF]/60 text-[#8A6C5F]">
                         <Package size={19} strokeWidth={1.4} />
                       </div>
+
                       <div className="min-w-0">
                         <p className="text-[9px] tracking-[0.2em] text-[#8A6C5F]">
                           ORDER REFERENCE
                         </p>
+
                         <p className="mt-1 break-all text-sm font-medium">
                           #{order._id}
                         </p>
+
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-[#8A6C5F]">
                           <CalendarDays size={13} />
                           {formatDate(order.createdAt)}
@@ -257,32 +470,30 @@ function Orders() {
                         ) : (
                           <Clock3 size={14} />
                         )}
+
                         {status.replaceAll("_", " ").toUpperCase()}
                       </span>
                     </div>
                   </div>
 
                   <div className="p-5 sm:p-7">
+                    <OrderTracking status={status} />
                     {/* Items */}
                     <div>
                       <h3 className="mb-5 font-serif text-xl">Order items</h3>
 
                       <div className="divide-y divide-[#E0D9CF]">
                         {(order.items || []).map((item, index) => {
-                          const product =
-                            item.productId && typeof item.productId === "object"
-                              ? item.productId
-                              : null;
-
-                          const variant =
-                            item.variantId && typeof item.variantId === "object"
-                              ? item.variantId
-                              : null;
+                          const variant = getVariant(item);
+                          const productName = getProductName(item);
+                          const image = getProductImage(item);
 
                           const quantity = Number(item.quantity || 0);
+
                           const unitPrice = Number(
                             item.price ?? item.sellingPrice ?? 0,
                           );
+
                           const subtotal = Number(
                             item.subtotal ?? unitPrice * quantity,
                           );
@@ -290,31 +501,47 @@ function Orders() {
                           return (
                             <div
                               key={item._id || index}
-                              className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                              className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"
                             >
-                              <div className="flex items-start gap-4">
-                                <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-[#E0D9CF] bg-[#F8F4EE] text-[#8A6C5F]">
-                                  <ShoppingBag size={22} strokeWidth={1.2} />
+                              {/* Product image + details */}
+                              <div className="flex min-w-0 items-start gap-4">
+                                <div className="h-28 w-24 shrink-0 overflow-hidden border border-[#E0D9CF] bg-[#F8F4EE]">
+                                  <img
+                                    src={getProductImage(item)}
+                                    alt={getProductName(item)}
+                                    loading="lazy"
+                                    className="h-full w-full object-cover"
+                                    onError={(event) => {
+                                      event.currentTarget.onerror = null;
+                                      event.currentTarget.src =
+                                        "/placeholder.png";
+                                    }}
+                                  />
                                 </div>
-                                <div>
+
+                                <div className="min-w-0 pt-1">
                                   <p className="text-sm font-medium">
-                                    {product?.name || item.name || "Product"}
+                                    {productName}
                                   </p>
+
                                   <p className="mt-1 text-xs text-[#8A6C5F]">
                                     Size: {item.size || variant?.size || "-"}
                                     {" · "}
                                     Color: {item.color || variant?.color || "-"}
                                   </p>
+
                                   <p className="mt-1 text-xs text-[#8A6C5F]">
                                     Qty: {quantity}
                                   </p>
                                 </div>
                               </div>
 
-                              <div className="sm:text-right">
+                              {/* Price */}
+                              <div className="pl-28 sm:pl-0 sm:text-right">
                                 <p className="text-sm font-medium">
                                   {formatPrice(subtotal)}
                                 </p>
+
                                 <p className="mt-1 text-xs text-[#8A6C5F]">
                                   {formatPrice(unitPrice)} each
                                 </p>
@@ -330,13 +557,16 @@ function Orders() {
                       <div className="border border-[#E0D9CF] p-4">
                         <div className="mb-3 flex items-center gap-2">
                           <CreditCard size={16} className="text-[#8A6C5F]" />
+
                           <h3 className="text-[10px] tracking-[0.15em]">
                             PAYMENT DETAILS
                           </h3>
                         </div>
+
                         <p className="text-sm">
                           {order.paymentMethod || "Not specified"}
                         </p>
+
                         <p className="mt-2 text-xs text-[#8A6C5F]">
                           Payment status:{" "}
                           <span className="capitalize text-[#544339]">
@@ -349,23 +579,29 @@ function Orders() {
                         <div className="border border-[#E0D9CF] p-4">
                           <div className="mb-3 flex items-center gap-2">
                             <MapPin size={16} className="text-[#8A6C5F]" />
+
                             <h3 className="text-[10px] tracking-[0.15em]">
                               SHIPPING ADDRESS
                             </h3>
                           </div>
+
                           <div className="text-sm leading-6">
                             {shipping.name && <p>{shipping.name}</p>}
+
                             {shipping.address && <p>{shipping.address}</p>}
+
                             {(shipping.city || shipping.state) && (
                               <p>
                                 {[shipping.city, shipping.state]
                                   .filter(Boolean)
                                   .join(", ")}
+
                                 {shipping.pincode
                                   ? ` - ${shipping.pincode}`
                                   : ""}
                               </p>
                             )}
+
                             {shipping.phone && (
                               <p className="mt-1 text-xs text-[#8A6C5F]">
                                 Phone: {shipping.phone}
@@ -382,6 +618,7 @@ function Orders() {
                         <p className="text-[9px] tracking-[0.2em] text-[#8A6C5F]">
                           ORDER TOTAL
                         </p>
+
                         <p className="mt-1 font-serif text-3xl">
                           {formatPrice(order.totalAmount)}
                         </p>
@@ -395,6 +632,7 @@ function Orders() {
                           className="inline-flex items-center justify-center gap-2 self-start border border-red-200 px-5 py-3 text-[10px] tracking-[0.12em] text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
                         >
                           <XCircle size={15} />
+
                           {cancellingId === order._id
                             ? "CANCELLING..."
                             : "CANCEL ORDER"}

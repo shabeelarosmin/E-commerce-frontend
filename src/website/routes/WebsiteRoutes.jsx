@@ -12,6 +12,7 @@ import Checkout from "../pages/Checkout";
 import Orders from "../pages/Orders";
 import Profile from "../pages/Profile.jsx";
 import EditProfile from "../pages/EditProfile.jsx";
+import Categories from "../pages/Categories.jsx";
 
 function WebsiteRoutes() {
   return (
@@ -27,6 +28,7 @@ function WebsiteRoutes() {
         <Route path="/orders" element={<Orders />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/edit" element={<EditProfile />} />
+        <Route path="/categories" element={<Categories />} />
       </Route>
     </Routes>
   );

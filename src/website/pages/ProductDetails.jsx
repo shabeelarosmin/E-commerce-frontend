@@ -9,13 +9,37 @@ const API_BASE_URL = "http://localhost:8000";
 
 function getArray(response) {
   if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.data)) return response.data;
-  if (Array.isArray(response?.products)) return response.products;
-  if (Array.isArray(response?.data?.products)) return response.data.products;
-  if (Array.isArray(response?.variants)) return response.variants;
-  if (Array.isArray(response?.data?.variants)) return response.data.variants;
 
-  return [];
+  const candidates = [
+    response?.data,
+    response?.data?.data,
+    response?.products,
+    response?.variants,
+    response?.data?.products,
+    response?.data?.variants,
+  ];
+
+  return candidates.find(Array.isArray) || [];
+}
+
+function getId(value) {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "object") {
+    return String(value._id || value.id || "");
+  }
+
+  return String(value);
+}
+
+function getVariantProductId(variant) {
+  return getId(
+    variant?.productId ??
+      variant?.product ??
+      variant?.parentProductId ??
+      variant?.productID ??
+      variant?.product_id,
+  );
 }
 
 function getImageUrl(value) {
@@ -27,6 +51,7 @@ function getImageUrl(value) {
       : value.url || value.path || value.secure_url || "";
 
   if (!path) return "";
+
   if (/^https?:\/\//i.test(path)) return path;
 
   return `${API_BASE_URL}/${path.replace(/^\/+/, "")}`;
@@ -38,7 +63,10 @@ function getProductImages(product) {
   if (Array.isArray(product?.images)) {
     product.images.forEach((image) => {
       const url = getImageUrl(image);
-      if (url && !images.includes(url)) images.push(url);
+
+      if (url && !images.includes(url)) {
+        images.push(url);
+      }
     });
   }
 
@@ -55,6 +83,26 @@ function formatPrice(value) {
   return Number(value || 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   });
+}
+
+function getAvailableStock(item) {
+  if (!item) return 0;
+
+  const stockValue = item.stockQuantity ?? item.stock;
+  const reservedValue = item.reservedQuantity ?? 0;
+
+  if (stockValue === null || stockValue === undefined || stockValue === "") {
+    return 0;
+  }
+
+  const stock = Number(stockValue);
+  const reserved = Number(reservedValue);
+
+  if (!Number.isFinite(stock) || !Number.isFinite(reserved)) {
+    return 0;
+  }
+
+  return Math.max(0, stock - reserved);
 }
 
 function ProductDetails() {
@@ -79,6 +127,12 @@ function ProductDetails() {
       try {
         setLoading(true);
         setError("");
+        setCartMessage("");
+        setProduct(null);
+        setVariants([]);
+        setSelectedVariant(null);
+        setSelectedImage(0);
+        setQuantity(1);
 
         const [productResponse, variantResponse] = await Promise.all([
           getWebsiteProducts(),
@@ -88,35 +142,55 @@ function ProductDetails() {
         const productList = getArray(productResponse);
         const variantList = getArray(variantResponse);
 
+        // Debug: verify the URL ID against the API product IDs.
+        console.log("URL PRODUCT ID:", id);
+        console.log(
+          "API PRODUCT IDS:",
+          productList.map((item) => ({
+            id: getId(item?._id || item?.id),
+            name: item?.name,
+          })),
+        );
+
         const selectedProduct = productList.find(
-          (item) => String(item._id || item.id) === String(id),
+          (item) => getId(item?._id || item?.id) === String(id || ""),
         );
 
         if (!selectedProduct) {
-          if (active) setError("We couldn't find this product.");
+          if (active) {
+            setError("We couldn't find this product.");
+          }
           return;
         }
 
-        const productVariants = variantList.filter((variant) => {
-          const variantProductId =
-            variant.productId?._id ||
-            variant.productId?.id ||
-            variant.productId ||
-            variant.product?._id ||
-            variant.product?.id ||
-            variant.product;
+        const productId = getId(selectedProduct._id || selectedProduct.id);
 
-          return (
-            String(variantProductId) === String(id) && variant.active !== false
-          );
+        const productVariants = variantList.filter((variant) => {
+          const variantProductId = getVariantProductId(variant);
+
+          const isActive =
+            variant.active !== false &&
+            variant.active !== "false" &&
+            variant.isActive !== false &&
+            variant.isActive !== "false";
+
+          return variantProductId === productId && isActive;
         });
+
+        console.log("MATCHED PRODUCT:", selectedProduct);
+        console.log("MATCHED VARIANTS:", productVariants);
 
         if (active) {
           setProduct(selectedProduct);
           setVariants(productVariants);
-          setSelectedVariant(productVariants[0] || null);
-          setSelectedImage(0);
-          setQuantity(1);
+
+          const firstAvailableVariant = productVariants.find(
+            (variant) => getAvailableStock(variant) > 0,
+          );
+
+          setSelectedVariant(
+            firstAvailableVariant || productVariants[0] || null,
+          );
         }
       } catch (err) {
         console.error("Product details error:", err);
@@ -128,7 +202,9 @@ function ProductDetails() {
           );
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
@@ -141,10 +217,13 @@ function ProductDetails() {
 
   const images = useMemo(() => getProductImages(product || {}), [product]);
 
+  const hasVariants = variants.length > 0;
+
   const price = Number(
     selectedVariant?.sellingPrice ??
       selectedVariant?.price ??
       product?.basePrice ??
+      product?.sellingPrice ??
       product?.price ??
       0,
   );
@@ -158,9 +237,30 @@ function ProductDetails() {
   );
 
   const discount = Number(product?.discount || 0);
-  const stock = Number(selectedVariant?.stockQuantity || 0);
 
-  // LOGIN REQUIRED BEFORE ADDING TO CART
+  const stock = hasVariants
+    ? selectedVariant
+      ? getAvailableStock(selectedVariant)
+      : 0
+    : getAvailableStock(product);
+
+  useEffect(() => {
+    console.log("PRODUCT:", product);
+    console.log("PRODUCT ID:", getId(product?._id || product?.id));
+    console.log("VARIANTS:", variants);
+    console.log("SELECTED VARIANT:", selectedVariant);
+    console.log("PRODUCT STOCK:", product?.stockQuantity);
+    console.log("VARIANT STOCK:", selectedVariant?.stockQuantity);
+    console.log("AVAILABLE STOCK:", stock);
+  }, [product, variants, selectedVariant, stock]);
+
+  const category =
+    typeof product?.categoryId === "object"
+      ? product.categoryId?.name
+      : typeof product?.category === "object"
+        ? product.category?.name
+        : product?.categoryName || product?.category || "ÉLORA Collection";
+
   const handleAddToCart = async () => {
     const token = localStorage.getItem("token");
 
@@ -175,12 +275,17 @@ function ProductDetails() {
       return;
     }
 
-    if (!selectedVariant) {
-      setCartMessage("Please select a size and colour.");
+    if (hasVariants && !selectedVariant) {
+      setCartMessage("Please select an available size and colour.");
       return;
     }
 
-    if (stock < quantity || quantity < 1) {
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setCartMessage("Please select a valid quantity.");
+      return;
+    }
+
+    if (stock <= 0 || quantity > stock) {
       setCartMessage("The selected quantity is not available in stock.");
       return;
     }
@@ -189,14 +294,21 @@ function ProductDetails() {
       setAdding(true);
       setCartMessage("");
 
-      await addToCart({
-        productId: product._id,
-        variantId: selectedVariant._id,
+      const cartItem = {
+        productId: getId(product._id || product.id),
         quantity,
-      });
+      };
+
+      if (hasVariants && selectedVariant) {
+        cartItem.variantId = getId(selectedVariant._id || selectedVariant.id);
+      }
+
+      await addToCart(cartItem);
 
       setCartMessage("Added to cart successfully.");
     } catch (err) {
+      console.error("Add to cart error:", err);
+
       if (err.response?.status === 401 || err.response?.status === 403) {
         navigate("/login", {
           state: {
@@ -262,16 +374,8 @@ function ProductDetails() {
     );
   }
 
-  const category =
-    typeof product.categoryId === "object"
-      ? product.categoryId?.name
-      : typeof product.category === "object"
-        ? product.category?.name
-        : product.categoryName || product.category || "ÉLORA Collection";
-
   return (
     <main className="min-h-screen bg-[#F8F4EE] text-[#544339]">
-      {/* Breadcrumb */}
       <div className="border-b border-[#E6DBCF]">
         <nav
           aria-label="Breadcrumb"
@@ -280,15 +384,11 @@ function ProductDetails() {
           <Link to="/" className="transition hover:text-[#544339]">
             Home
           </Link>
-
           <span>/</span>
-
           <Link to="/products" className="transition hover:text-[#544339]">
             Collection
           </Link>
-
           <span>/</span>
-
           <span className="max-w-[180px] truncate text-[#544339]">
             {product.name}
           </span>
@@ -297,7 +397,6 @@ function ProductDetails() {
 
       <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-16">
         <div className="grid items-start gap-9 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 xl:gap-20">
-          {/* Product gallery */}
           <div className="min-w-0">
             <div className="group relative aspect-[4/5] overflow-hidden bg-[#EAE0D4]">
               {images.length > 0 ? (
@@ -388,7 +487,6 @@ function ProductDetails() {
             </div>
           </div>
 
-          {/* Product information */}
           <div className="lg:sticky lg:top-8">
             <p className="text-[10px] uppercase tracking-[0.25em] text-[#967A67]">
               {category}
@@ -429,11 +527,12 @@ function ProductDetails() {
               </p>
             )}
 
-            {/* Size and colour */}
             <div className="mt-9">
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-[10px] font-medium uppercase tracking-[0.2em]">
-                  Select your size & colour
+                  {hasVariants
+                    ? "Select your size & colour"
+                    : "Product options"}
                 </h2>
 
                 {selectedVariant && (
@@ -443,17 +542,19 @@ function ProductDetails() {
                 )}
               </div>
 
-              {variants.length === 0 ? (
+              {!hasVariants ? (
                 <p className="mt-4 border border-[#E4D8CB] p-4 text-xs leading-6 text-[#8A6C5F]">
-                  No variants are currently available for this product.
+                  This product has no size or colour options. You can add it
+                  directly to your cart.
                 </p>
               ) : (
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {variants.map((variant) => {
-                    const isSelected = selectedVariant?._id === variant._id;
+                    const isSelected =
+                      getId(selectedVariant?._id) === getId(variant._id);
 
-                    const isOutOfStock =
-                      Number(variant.stockQuantity || 0) <= 0;
+                    const variantStock = getAvailableStock(variant);
+                    const isOutOfStock = variantStock <= 0;
 
                     return (
                       <button
@@ -477,7 +578,8 @@ function ProductDetails() {
                         }`}
                       >
                         <span className="block text-xs font-medium">
-                          {variant.size} · {variant.color}
+                          {variant.size || "Standard"} ·{" "}
+                          {variant.color || "Default"}
                         </span>
 
                         <span className="mt-2 block text-[10px] text-[#8A6C5F]">
@@ -498,27 +600,23 @@ function ProductDetails() {
               )}
             </div>
 
-            {/* Stock status */}
-            {selectedVariant && (
-              <div className="mt-5 flex items-center gap-2 text-xs">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    stock > 0 ? "bg-green-700" : "bg-red-600"
-                  }`}
-                />
+            <div className="mt-5 flex items-center gap-2 text-xs">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  stock > 0 ? "bg-green-700" : "bg-red-600"
+                }`}
+              />
 
-                <span className={stock > 0 ? "text-[#6C7760]" : "text-red-700"}>
-                  {stock > 0
-                    ? stock <= 5
-                      ? `Only ${stock} left in stock`
-                      : "In stock and ready to order"
-                    : "Currently out of stock"}
-                </span>
-              </div>
-            )}
+              <span className={stock > 0 ? "text-[#6C7760]" : "text-red-700"}>
+                {stock > 0
+                  ? stock <= 5
+                    ? `Only ${stock} left in stock`
+                    : "In stock and ready to order"
+                  : "Currently out of stock"}
+              </span>
+            </div>
 
-            {/* Quantity */}
-            {selectedVariant && stock > 0 && (
+            {stock > 0 && (
               <div className="mt-7 flex items-center justify-between border-y border-[#E4D8CB] py-5">
                 <span className="text-[10px] uppercase tracking-[0.18em]">
                   Quantity
@@ -556,11 +654,12 @@ function ProductDetails() {
               </div>
             )}
 
-            {/* Add to Cart */}
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={adding || !selectedVariant || stock <= 0}
+              disabled={
+                adding || stock <= 0 || (hasVariants && !selectedVariant)
+              }
               className="mt-6 flex w-full items-center justify-center gap-3 bg-[#544339] px-6 py-5 text-[10px] font-medium uppercase tracking-[0.2em] text-[#F8F4EE] transition duration-300 hover:bg-[#8A6C5F] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {adding ? "Adding to Cart..." : "Add to Cart"}
@@ -631,7 +730,6 @@ function ProductDetails() {
         </div>
       </section>
 
-      {/* Brand note */}
       <section className="border-t border-[#E6DBCF] px-5 py-12 text-center sm:py-16">
         <p className="text-[9px] uppercase tracking-[0.3em] text-[#967A67]">
           The ÉLORA promise

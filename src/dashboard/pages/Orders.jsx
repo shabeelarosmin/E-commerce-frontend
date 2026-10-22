@@ -23,6 +23,9 @@ function Orders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Modal state
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
   const fetchOrders = async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
@@ -44,31 +47,32 @@ function Orders() {
     fetchOrders();
   }, []);
 
-  const handleStatusUpdate = async (order) => {
-    const currentStatus = String(order.orderStatus || "placed").toLowerCase();
+  // Confirm status update from the modal
+  const handleStatusUpdate = async () => {
+    if (!selectedOrder) return;
+
+    const currentStatus = String(
+      selectedOrder.orderStatus || "placed",
+    ).toLowerCase();
+
     const status = nextStatus[currentStatus];
 
     if (!status) return;
 
-    const confirmed = window.confirm(
-      `Change order status from "${currentStatus}" to "${status}"?`,
-    );
-
-    if (!confirmed) return;
-
     try {
-      setUpdatingId(order._id);
+      setUpdatingId(selectedOrder._id);
       setMessage("");
       setError("");
 
-      const response = await updateOrderStatus(order._id, status);
+      const response = await updateOrderStatus(selectedOrder._id, status);
 
       setMessage(
-        response?.message ||
-          response?.data?.message ||
+        response?.data?.message ||
+          response?.message ||
           "Order status updated successfully.",
       );
 
+      setSelectedOrder(null);
       await fetchOrders();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update order status.");
@@ -83,6 +87,7 @@ function Orders() {
     return orders.filter((order) => {
       const customerName =
         order.customerId?.name || order.customer?.name || "Customer";
+
       const orderId = String(order._id || "").toLowerCase();
       const currentStatus = String(order.orderStatus || "placed").toLowerCase();
 
@@ -123,7 +128,11 @@ function Orders() {
 
   const formatStatus = (status) => {
     const value = String(status || "placed");
-    return value.charAt(0).toUpperCase() + value.slice(1);
+
+    return value
+      .replaceAll("_", " ")
+      .replaceAll("-", " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
   };
 
   const statusClass = (status) => {
@@ -131,9 +140,12 @@ function Orders() {
 
     if (value === "delivered")
       return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+
     if (["cancelled", "canceled"].includes(value))
       return "bg-rose-50 text-rose-700 ring-rose-200";
+
     if (value === "shipped") return "bg-sky-50 text-sky-700 ring-sky-200";
+
     if (["confirmed", "processing"].includes(value))
       return "bg-blue-50 text-blue-700 ring-blue-200";
 
@@ -158,9 +170,11 @@ function Orders() {
             <p className="mb-2 text-[10px] font-extrabold tracking-[2.5px] text-[#a17b50]">
               ÉLORA / SALES MANAGEMENT
             </p>
+
             <h1 className="font-serif text-3xl font-medium tracking-tight text-[#39291f] sm:text-4xl">
               Orders Management
             </h1>
+
             <p className="mt-2 text-sm text-[#8d8177]">
               Manage customer orders, payments and fulfilment.
             </p>
@@ -206,12 +220,14 @@ function Orders() {
             value={orders.length}
             note="All recorded orders"
           />
+
           <StatCard
             symbol="◷"
             title="Pending Orders"
             value={pendingCount}
             note="Awaiting processing"
           />
+
           <StatCard
             symbol="₹"
             title="Total Order Value"
@@ -228,7 +244,9 @@ function Orders() {
               <p className="mb-2 text-[10px] font-extrabold tracking-[2px] text-[#a17b50]">
                 ORDER DIRECTORY
               </p>
+
               <h2 className="font-serif text-2xl text-[#39291f]">All Orders</h2>
+
               <p className="mt-2 text-sm text-[#958579]">
                 {deliveredCount} delivered · {orders.length} total orders
               </p>
@@ -239,6 +257,7 @@ function Orders() {
                 <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-[#a18e7b]">
                   ⌕
                 </span>
+
                 <input
                   type="search"
                   placeholder="Search order ID or customer..."
@@ -256,8 +275,10 @@ function Orders() {
                 className={`${inputClass} sm:w-44`}
               >
                 <option value="all">All statuses</option>
+
                 {[
                   "placed",
+                  "pending",
                   "confirmed",
                   "processing",
                   "shipped",
@@ -278,14 +299,17 @@ function Orders() {
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#eadcc9] bg-[#f7efe4] font-serif text-3xl text-[#9a774f]">
                 ◇
               </span>
+
               <h3 className="mt-5 font-serif text-xl text-[#51392b]">
                 {orders.length === 0 ? "No orders yet" : "No orders found"}
               </h3>
+
               <p className="mx-auto mt-2 max-w-sm text-sm text-[#958579]">
                 {orders.length === 0
                   ? "Customer orders will appear here when they are placed."
                   : "Try a different search term or status filter."}
               </p>
+
               {(search || statusFilter !== "all") && (
                 <button
                   type="button"
@@ -307,8 +331,10 @@ function Orders() {
                 ).toLowerCase();
 
                 const customer = order.customerId || order.customer || {};
+
                 const shippingAddress = order.shippingAddress;
                 const items = Array.isArray(order.items) ? order.items : [];
+
                 const next = nextStatus[currentStatus];
 
                 return (
@@ -322,12 +348,14 @@ function Orders() {
                         <p className="text-[10px] font-extrabold tracking-[1.8px] text-[#a17b50]">
                           ORDER REFERENCE
                         </p>
+
                         <h3 className="mt-2 font-serif text-xl text-[#39291f]">
                           #
                           {String(order._id || "")
                             .slice(-8)
                             .toUpperCase()}
                         </h3>
+
                         <p className="mt-1 text-sm text-[#8d8177]">
                           {customer.name || "Customer"}
                         </p>
@@ -348,10 +376,12 @@ function Orders() {
                         value={money(order.totalAmount)}
                         highlight
                       />
+
                       <InfoBlock
                         label="Payment Method"
                         value={order.paymentMethod || "Not specified"}
                       />
+
                       <InfoBlock
                         label="Payment Status"
                         value={formatStatus(order.paymentStatus || "pending")}
@@ -379,8 +409,10 @@ function Orders() {
 
                             const size =
                               item.size || item.variantId?.size || "-";
+
                             const color =
                               item.color || item.variantId?.color || "-";
+
                             const price = Number(item.price || 0);
                             const quantity = Number(item.quantity || 0);
                             const subtotal = item.subtotal ?? price * quantity;
@@ -398,9 +430,11 @@ function Orders() {
                                   <p className="truncate text-sm font-semibold text-[#51392b]">
                                     {productName}
                                   </p>
+
                                   <p className="mt-1 text-xs text-[#958579]">
                                     Size: {size} · Color: {color}
                                   </p>
+
                                   <p className="mt-1 text-xs text-[#8d8177]">
                                     {money(price)} × {quantity}
                                   </p>
@@ -423,15 +457,18 @@ function Orders() {
                           <span className="text-lg text-[#a17b50]">⌖</span>
                           Shipping Address
                         </h4>
+
                         <div className="mt-3 space-y-1 text-sm leading-6 text-[#8d8177]">
                           {shippingAddress.name && (
                             <p className="font-semibold text-[#51392b]">
                               {shippingAddress.name}
                             </p>
                           )}
+
                           {shippingAddress.address && (
                             <p>{shippingAddress.address}</p>
                           )}
+
                           <p>
                             {[shippingAddress.city, shippingAddress.state]
                               .filter(Boolean)
@@ -440,6 +477,7 @@ function Orders() {
                               ? ` - ${shippingAddress.pincode}`
                               : ""}
                           </p>
+
                           {shippingAddress.phone && (
                             <p>Phone: {shippingAddress.phone}</p>
                           )}
@@ -453,6 +491,7 @@ function Orders() {
                         <p className="text-[10px] font-extrabold tracking-[1.5px] text-[#a17b50]">
                           ORDER STATUS
                         </p>
+
                         <p className="mt-1 text-sm font-semibold text-[#51392b]">
                           {formatStatus(currentStatus)}
                         </p>
@@ -462,12 +501,10 @@ function Orders() {
                         <button
                           type="button"
                           className={buttonClass}
-                          onClick={() => handleStatusUpdate(order)}
+                          onClick={() => setSelectedOrder(order)}
                           disabled={updatingId === order._id}
                         >
-                          {updatingId === order._id
-                            ? "Updating..."
-                            : `Mark as ${formatStatus(next)} →`}
+                          Mark as {formatStatus(next)} →
                         </button>
                       ) : (
                         <span className="inline-flex w-fit items-center gap-2 rounded-xl bg-[#edf5e9] px-4 py-3 text-xs font-semibold text-[#50754b]">
@@ -497,6 +534,137 @@ function Orders() {
           <span>DESIGNED WITH CARE ✦</span>
         </footer>
       </div>
+
+      {/* CENTERED UPDATE STATUS MODAL */}
+      {selectedOrder && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !updatingId) {
+              setSelectedOrder(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="status-modal-title"
+            className="my-auto w-full max-w-md animate-[modalIn_0.2s_ease-out] rounded-2xl border border-[#e9dfd3] bg-[#fffdf9] p-6 shadow-2xl sm:p-8"
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-extrabold tracking-[2px] text-[#a17b50]">
+                  ÉLORA / ORDER MANAGEMENT
+                </p>
+
+                <h2
+                  id="status-modal-title"
+                  className="mt-2 font-serif text-2xl text-[#39291f]"
+                >
+                  Update Order Status
+                </h2>
+
+                <p className="mt-2 text-sm text-[#958579]">
+                  Confirm the next stage of this order.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                disabled={Boolean(updatingId)}
+                aria-label="Close modal"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e9dfd3] text-xl text-[#806b57] transition hover:bg-[#f5ede3] disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Order Reference */}
+            <div className="mt-6 rounded-xl border border-[#eee5da] bg-[#fcf8f2] p-4">
+              <p className="text-xs text-[#958579]">Order Reference</p>
+
+              <p className="mt-1 font-serif text-lg font-semibold text-[#51392b]">
+                #
+                {String(selectedOrder._id || "")
+                  .slice(-8)
+                  .toUpperCase()}
+              </p>
+
+              <p className="mt-1 text-sm text-[#806b57]">
+                {selectedOrder.customerId?.name ||
+                  selectedOrder.customer?.name ||
+                  "Customer"}
+              </p>
+            </div>
+
+            {/* Status Transition */}
+            <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div className="min-w-0">
+                <p className="mb-2 text-xs text-[#958579]">Current Status</p>
+
+                <span
+                  className={`inline-flex max-w-full rounded-full px-3 py-2 text-xs font-semibold ring-1 ring-inset ${statusClass(
+                    selectedOrder.orderStatus,
+                  )}`}
+                >
+                  {formatStatus(selectedOrder.orderStatus)}
+                </span>
+              </div>
+
+              <span className="mt-6 text-xl text-[#a17b50]">→</span>
+
+              <div className="min-w-0">
+                <p className="mb-2 text-xs text-[#958579]">Next Status</p>
+
+                <span className="inline-flex max-w-full rounded-full bg-[#edf5e9] px-3 py-2 text-xs font-semibold text-[#50754b] ring-1 ring-inset ring-emerald-200">
+                  {formatStatus(
+                    nextStatus[
+                      String(
+                        selectedOrder.orderStatus || "placed",
+                      ).toLowerCase()
+                    ],
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-5 text-sm leading-6 text-[#806b57]">
+              Are you sure you want to update this order&apos;s status?
+            </p>
+
+            {/* Modal Buttons */}
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                disabled={Boolean(updatingId)}
+                className="rounded-xl border border-[#e6dacb] px-5 py-3 text-sm font-semibold text-[#654a35] transition hover:bg-[#f7efe4] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleStatusUpdate}
+                disabled={Boolean(updatingId)}
+                className={buttonClass}
+              >
+                {updatingId === selectedOrder._id
+                  ? "Updating..."
+                  : `Confirm ${formatStatus(
+                      nextStatus[
+                        String(
+                          selectedOrder.orderStatus || "placed",
+                        ).toLowerCase()
+                      ],
+                    )}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -520,6 +688,7 @@ function StatCard({ symbol, title, value, note, dark = false }) {
         >
           {title}
         </p>
+
         <span
           className={
             dark
@@ -530,6 +699,7 @@ function StatCard({ symbol, title, value, note, dark = false }) {
           {symbol}
         </span>
       </div>
+
       <h2
         className={
           dark
@@ -539,6 +709,7 @@ function StatCard({ symbol, title, value, note, dark = false }) {
       >
         {value}
       </h2>
+
       <p
         className={
           dark ? "mt-2 text-xs text-white/60" : "mt-2 text-xs text-[#a09284]"
@@ -554,6 +725,7 @@ function InfoBlock({ label, value, highlight = false }) {
   return (
     <div>
       <p className="text-xs text-[#958579]">{label}</p>
+
       <p
         className={`mt-2 break-words text-sm font-semibold ${
           highlight ? "font-serif text-xl text-[#51392b]" : "text-[#654a35]"

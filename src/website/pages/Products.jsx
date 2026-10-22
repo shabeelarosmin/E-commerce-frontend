@@ -632,18 +632,18 @@ function Products() {
 
       {/* Brand statement */}
       {!loading && !error && filteredProducts.length > 0 && (
-        <section className="border-t border-[#E6DBCF] bg-[#EAE0D4]/40 px-5 py-14 text-center sm:py-20">
-          <p className="text-[9px] uppercase tracking-[0.3em] text-[#967A67]">
+        <section className="border-t border-[#E6DBCF] bg-[#39291f] px-5 py-14 text-center sm:py-20">
+          <p className="text-[9px] uppercase tracking-[0.3em] text-[#F3E8D3]">
             The ÉLORA Philosophy
           </p>
 
-          <h2 className="mx-auto mt-5 max-w-2xl font-serif text-3xl leading-snug text-[#544339] sm:text-5xl">
+          <h2 className="mx-auto mt-5 max-w-2xl font-serif text-3xl leading-snug text-[#F3E8D3] sm:text-5xl">
             Less ordinary.
             <br />
             <span className="italic">More you.</span>
           </h2>
 
-          <p className="mx-auto mt-5 max-w-md text-xs leading-7 text-[#8D7B6D] sm:text-sm">
+          <p className="mx-auto mt-5 max-w-md text-xs leading-7 text-[#F3E8D3] sm:text-sm">
             Thoughtful details and timeless silhouettes, chosen to become part
             of your story.
           </p>

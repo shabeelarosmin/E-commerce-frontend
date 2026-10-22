@@ -1,192 +1,294 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, UserRound, ShoppingBag, Menu, X } from "lucide-react";
+import {
+  Search,
+  UserRound,
+  ShoppingBag,
+  Menu,
+  X,
+  ArrowRight,
+  Sparkles,
+  LogOut,
+} from "lucide-react";
 
 function Navbar() {
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    Boolean(localStorage.getItem("token")),
+  );
 
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
+
+  // Login/logout changes update the navbar when this component mounts.
+  useEffect(() => {
+    const syncAuth = () => {
+      setIsLoggedIn(Boolean(localStorage.getItem("token")));
+    };
+
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("auth-change", syncAuth);
+
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("auth-change", syncAuth);
+    };
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
-
     const query = search.trim();
 
-    if (query) {
-      navigate(`/products?search=${encodeURIComponent(query)}`);
-      setSearch("");
-    }
+    if (!query) return;
+
+    navigate(`/products?search=${encodeURIComponent(query)}`);
+    setSearch("");
+    closeMenus();
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    setIsLoggedIn(false);
+    closeMenus();
+
+    window.dispatchEvent(new Event("auth-change"));
+    navigate("/login", { replace: true });
+  };
+
+  const closeMenus = () => {
+    setMobileMenu(false);
+    setSearchOpen(false);
+  };
+
+  const navItems = [
+    { label: "HOME", to: "/" },
+    { label: "SHOP ALL", to: "/products" },
+    { label: "MY ORDERS", to: "/orders" },
+    { label: "CATEGORIES", to: "/categories" },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 border-b border-[#E0D9CF] bg-[#F8F4EE]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-[#E7DED3] bg-[#FCFAF6]/95 text-[#544339] shadow-[0_3px_20px_rgba(84,67,57,0.04)] backdrop-blur-xl">
       {/* Announcement bar */}
-      <div className="bg-[#544339] px-4 py-2 text-center text-[10px] tracking-[2px] text-white sm:text-xs">
-        EFFORTLESS STYLE, EVERY DAY
+      <div className="flex items-center justify-center gap-2 bg-[#544339] px-3 py-2 text-center text-[9px] uppercase tracking-[2px] text-[#F8F4EE] sm:tracking-[3px]">
+        <Sparkles size={11} className="text-[#C9AC91]" strokeWidth={1.3} />
+        <span>Thoughtfully selected · Effortlessly elegant</span>
+        <Sparkles size={11} className="text-[#C9AC91]" strokeWidth={1.3} />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
-        <div className="flex h-20 items-center justify-between gap-4">
-          {/* Mobile menu */}
-          <button
-            type="button"
-            onClick={() => setMobileMenu(!mobileMenu)}
-            className="text-[#544339] md:hidden"
-            aria-label="Toggle menu"
-          >
-            {mobileMenu ? <X size={23} /> : <Menu size={23} />}
-          </button>
-
-          {/* Logo */}
-          <Link to="/" className="shrink-0">
-            <span className="font-serif text-3xl tracking-[5px] text-[#544339] sm:text-4xl">
-              ÉLORA
-            </span>
-            <span className="mt-1 block text-center text-[8px] tracking-[3px] text-[#8A6C5F]">
-              YOUR EVERYDAY ELEGANCE
-            </span>
-          </Link>
-
-          {/* Desktop navigation */}
-          <nav className="hidden items-center gap-7 md:flex">
-            <Link
-              to="/"
-              className="text-xs tracking-[1.5px] text-[#544339] transition hover:text-[#8A6C5F]"
-            >
-              HOME
-            </Link>
-
-            <Link
-              to="/products"
-              className="text-xs tracking-[1.5px] text-[#544339] transition hover:text-[#8A6C5F]"
-            >
-              SHOP ALL
-            </Link>
-
-            <Link
-              to="/products?category=new"
-              className="text-xs tracking-[1.5px] text-[#544339] transition hover:text-[#8A6C5F]"
-            >
-              NEW ARRIVALS
-            </Link>
-          </nav>
-
-          {/* Search, profile, cart */}
-          <div className="flex items-center gap-3 sm:gap-5">
-            {/* Desktop search */}
-            <form
-              onSubmit={handleSearch}
-              className="hidden h-10 items-center border-b border-[#BFA38A] lg:flex"
-            >
-              <Search size={17} className="text-[#8A6C5F]" />
-
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products..."
-                className="w-32 bg-transparent px-2 text-sm text-[#544339] outline-none placeholder:text-[#A39183] xl:w-44"
-                aria-label="Search products"
-              />
-
-              <button
-                type="submit"
-                className="text-xs tracking-wider text-[#544339] hover:text-[#8A6C5F]"
-              >
-                SEARCH
-              </button>
-            </form>
-
-            {/* Mobile search */}
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-7 lg:px-12">
+        <div className="flex min-h-[82px] items-center justify-between gap-3 sm:min-h-[94px]">
+          {/* Logo and mobile menu */}
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate("/products")}
-              className="text-[#544339] lg:hidden"
-              aria-label="Search products"
+              onClick={() => {
+                setMobileMenu((prev) => !prev);
+                setSearchOpen(false);
+              }}
+              className="mr-1 rounded-full p-2 transition hover:bg-[#F0E8DE] md:hidden"
+              aria-label={mobileMenu ? "Close menu" : "Open menu"}
             >
-              <Search size={21} strokeWidth={1.5} />
+              {mobileMenu ? (
+                <X size={21} strokeWidth={1.5} />
+              ) : (
+                <Menu size={21} strokeWidth={1.5} />
+              )}
             </button>
 
-            {/* Profile */}
             <Link
-              to={token ? "/profile" : "/login"}
-              className="flex flex-col items-center gap-1 text-[#544339] transition hover:text-[#8A6C5F]"
-              aria-label="Profile"
+              to="/"
+              onClick={closeMenus}
+              aria-label="ÉLORA Home"
+              className="group flex items-center gap-2.5 sm:gap-3"
             >
-              <UserRound size={21} strokeWidth={1.5} />
-              <span className="hidden text-[9px] tracking-wider sm:block">
-                PROFILE
+              {/* Circular É logo */}
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3]">
+                É
+              </div>
+
+              {/* Brand name */}
+              <span className="flex flex-col items-start">
+                <span className="font-serif text-[27px] font-bold leading-none tracking-[2px] text-[#493426] transition-colors group-hover:text-[#8A6C5F] sm:text-[35px] sm:tracking-[3px] lg:text-[39px]">
+                  ÉLORA
+                </span>
+                <span className="mt-1.5 whitespace-nowrap text-[6px] font-semibold uppercase tracking-[1.6px] text-[#967D6D] sm:text-[8px] sm:tracking-[2.5px]">
+                  Your everyday elegance
+                </span>
               </span>
             </Link>
+          </div>
 
-            {/* Cart */}
+          {/* Desktop navigation */}
+          <nav className="hidden items-center justify-center gap-6 md:flex lg:gap-10">
+            {navItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                className="group relative py-3 text-[9px] font-medium tracking-[1.8px] transition-colors hover:text-[#98765F] lg:text-[10px]"
+              >
+                {item.label}
+                <span className="absolute bottom-0 left-0 h-px w-0 bg-[#98765F] transition-all duration-300 group-hover:w-full" />
+              </Link>
+            ))}
+          </nav>
+
+          {/* Right-side icons */}
+          <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-2">
+            {/* Search */}
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen((prev) => !prev);
+                setMobileMenu(false);
+              }}
+              className={`rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3 ${
+                searchOpen ? "bg-[#F0E8DE]" : ""
+              }`}
+              aria-label={searchOpen ? "Close search" : "Search products"}
+              aria-expanded={searchOpen}
+            >
+              {searchOpen ? (
+                <X size={19} strokeWidth={1.5} />
+              ) : (
+                <Search size={19} strokeWidth={1.5} />
+              )}
+            </button>
+
+            {/* Account icon only — no text */}
+            <Link
+              to={isLoggedIn ? "/profile" : "/login"}
+              onClick={closeMenus}
+              className="flex items-center justify-center rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3"
+              aria-label={isLoggedIn ? "My account" : "Sign in"}
+              title={isLoggedIn ? "My account" : "Sign in"}
+            >
+              <UserRound
+                size={20}
+                strokeWidth={1.5}
+                className="transition-colors hover:text-[#98765F]"
+              />
+            </Link>
+
+            {/* Logout — visible only while logged in */}
+            {isLoggedIn && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-1 inline-flex items-center gap-2 rounded-lg border border-[#544339] bg-[#544339] px-3.5 py-2.5 text-[9px] font-semibold tracking-[1.4px] text-[#F8F4EE] transition duration-300 hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:px-4"
+              >
+                <LogOut size={13} strokeWidth={1.6} />
+                <span>LOG OUT</span>
+              </button>
+            )}
+
+            {/* Shopping bag */}
             <Link
               to="/cart"
-              className="relative flex flex-col items-center gap-1 text-[#544339] transition hover:text-[#8A6C5F]"
-              aria-label="Shopping cart"
+              onClick={closeMenus}
+              className="rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3"
+              aria-label="Shopping bag"
+              title="Shopping bag"
             >
-              <ShoppingBag size={21} strokeWidth={1.5} />
-              <span className="hidden text-[9px] tracking-wider sm:block">
-                CART
-              </span>
+              <ShoppingBag
+                size={20}
+                strokeWidth={1.5}
+                className="transition-transform duration-300 hover:-translate-y-0.5"
+              />
             </Link>
           </div>
         </div>
 
-        {/* Mobile search */}
-        <form
-          onSubmit={handleSearch}
-          className="mb-4 flex h-10 items-center border-b border-[#BFA38A] lg:hidden"
+        {/* Expandable search */}
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            searchOpen
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0"
+          }`}
         >
-          <Search size={17} className="text-[#8A6C5F]" />
-
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your style..."
-            className="w-full bg-transparent px-3 text-sm text-[#544339] outline-none placeholder:text-[#A39183]"
-            aria-label="Search products"
-          />
-
-          <button
-            type="submit"
-            className="text-xs tracking-wider text-[#544339]"
-          >
-            GO
-          </button>
-        </form>
+          <div className="overflow-hidden">
+            <form
+              onSubmit={handleSearch}
+              className="mx-auto flex max-w-2xl items-center gap-3 border-t border-[#E7DED3] py-4"
+            >
+              <Search
+                size={18}
+                strokeWidth={1.5}
+                className="shrink-0 text-[#98765F]"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Discover something beautiful..."
+                className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-[#B3A294]"
+                aria-label="Search products"
+              />
+              <button
+                type="submit"
+                disabled={!search.trim()}
+                className="flex items-center gap-2 text-[10px] font-semibold tracking-[1.5px] transition hover:text-[#98765F] disabled:opacity-40"
+              >
+                SEARCH <ArrowRight size={14} />
+              </button>
+            </form>
+          </div>
+        </div>
 
         {/* Mobile navigation */}
-        {mobileMenu && (
-          <nav className="flex flex-col border-t border-[#E0D9CF] py-3 md:hidden">
-            <Link
-              to="/"
-              onClick={() => setMobileMenu(false)}
-              className="py-3 text-xs tracking-[2px] text-[#544339]"
-            >
-              HOME
-            </Link>
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            mobileMenu
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <nav className="border-t border-[#E7DED3] py-2 md:hidden">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  onClick={closeMenus}
+                  className="group flex items-center justify-between border-b border-[#E7DED3]/70 py-4 text-[10px] font-medium tracking-[2px] transition-colors last:border-b-0 hover:text-[#98765F]"
+                >
+                  {item.label}
+                  <ArrowRight
+                    size={15}
+                    className="transition-transform group-hover:translate-x-1"
+                  />
+                </Link>
+              ))}
 
-            <Link
-              to="/products"
-              onClick={() => setMobileMenu(false)}
-              className="py-3 text-xs tracking-[2px] text-[#544339]"
-            >
-              SHOP ALL
-            </Link>
+              <div className="flex items-center justify-between gap-3 border-t border-[#E7DED3] pt-4">
+                <Link
+                  to={isLoggedIn ? "/profile" : "/login"}
+                  onClick={closeMenus}
+                  aria-label={isLoggedIn ? "My account" : "Sign in"}
+                  title={isLoggedIn ? "My account" : "Sign in"}
+                  className="flex items-center justify-center rounded-full border border-[#E7DED3] p-3 hover:bg-[#F0E8DE]"
+                >
+                  <UserRound size={19} strokeWidth={1.5} />
+                </Link>
 
-            <Link
-              to="/products?category=new"
-              onClick={() => setMobileMenu(false)}
-              className="py-3 text-xs tracking-[2px] text-[#544339]"
-            >
-              NEW ARRIVALS
-            </Link>
-          </nav>
-        )}
+                {isLoggedIn && (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#493426] px-4 py-3 text-[12px] font-semibold tracking-[2px] text-[#F8F4EE] transition hover:bg-[#8A6C5F]"
+                  >
+                    <LogOut size={14} />
+                    LOG OUT
+                  </button>
+                )}
+              </div>
+            </nav>
+          </div>
+        </div>
       </div>
     </header>
   );

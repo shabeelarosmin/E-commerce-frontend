@@ -309,7 +309,7 @@ function Home() {
 
         <div className="relative min-h-[350px] bg-[#8A6C5F] lg:min-h-[620px]">
           <img
-            src="/images/hero.jpg.jfif"
+            src="/images/6.png.jfif"
             alt="ÉLORA fashion collection"
             className="absolute inset-0 h-full w-full object-cover"
             onError={(event) => {
@@ -513,7 +513,7 @@ function Home() {
         <div className="grid overflow-hidden bg-[#BFA38A] md:grid-cols-2">
           <div className="relative min-h-[280px] bg-[#8A6C5F] md:min-h-[430px]">
             <img
-              src="/images/promo-banner.jpg"
+              src="/images/5.png.jfif"
               alt="ÉLORA timeless fashion"
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover"
@@ -667,7 +667,7 @@ function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#BFA38A]/50 bg-[#E0D9CF] px-5 py-8 sm:px-8 lg:px-12">
+      <footer className="border-t border-[#BFA38A]/50 bg-[#493426] px-5 py-8 sm:px-8 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 sm:flex-row">
           <Link
             to="/"

@@ -1,8 +1,12 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8000/api/dashboard/product-variant";
+const API_BASE_URL = "http://localhost:8000/api";
 
-const getAuthConfig = () => ({
+const VARIANT_API = `${API_BASE_URL}/dashboard/product-variant`;
+const PRODUCT_API = `${API_BASE_URL}/dashboard/product`;
+const WEBSITE_VARIANT_API = `${API_BASE_URL}/website/product-variant`;
+
+const authConfig = () => ({
   headers: {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
   },
@@ -10,43 +14,46 @@ const getAuthConfig = () => ({
 
 // GET ALL VARIANTS
 export const getProductVariants = async () => {
-  const response = await axios.get(API_URL, getAuthConfig());
-  return response.data;
+  const { data } = await axios.get(VARIANT_API, authConfig());
+  return data;
 };
 
 // GET SINGLE VARIANT
 export const getProductVariant = async (id) => {
-  const response = await axios.get(`${API_URL}/${id}`, getAuthConfig());
-  return response.data;
+  const { data } = await axios.get(`${VARIANT_API}/${id}`, authConfig());
+  return data;
+};
+
+// GET PRODUCTS FOR DROPDOWN
+export const getDashboardProducts = async () => {
+  const { data } = await axios.get(PRODUCT_API, authConfig());
+  return data;
 };
 
 // CREATE VARIANT
 export const createProductVariant = async (variantData) => {
-  const response = await axios.post(API_URL, variantData, getAuthConfig());
-  return response.data;
+  const { data } = await axios.post(VARIANT_API, variantData, authConfig());
+  return data;
 };
 
 // UPDATE VARIANT
 export const updateProductVariant = async (id, variantData) => {
-  const response = await axios.put(
-    `${API_URL}/${id}`,
+  const { data } = await axios.put(
+    `${VARIANT_API}/${id}`,
     variantData,
-    getAuthConfig(),
+    authConfig(),
   );
-  return response.data;
+  return data;
 };
 
 // DELETE VARIANT
 export const deleteProductVariant = async (id) => {
-  const response = await axios.delete(`${API_URL}/${id}`, getAuthConfig());
-  return response.data;
+  const { data } = await axios.delete(`${VARIANT_API}/${id}`, authConfig());
+  return data;
 };
-// PUBLIC WEBSITE API
-const WEBSITE_API_URL =
-  "http://localhost:8000/api/website/product-variant";
 
+// PUBLIC WEBSITE VARIANTS
 export const getWebsiteProductVariants = async () => {
-  const response = await axios.get(WEBSITE_API_URL);
-  return response.data;
+  const { data } = await axios.get(WEBSITE_VARIANT_API);
+  return data;
 };
-

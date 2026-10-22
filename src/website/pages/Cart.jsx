@@ -259,9 +259,13 @@ function Cart() {
                         <div className="flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F3E8D3]/50 sm:h-40 sm:w-32">
                           {details.image ? (
                             <img
-                              src={details.image}
-                              alt={details.name}
-                              className="h-full w-full object-cover"
+                              src={
+                                item.productId?.images?.[0]
+                                  ? `http://localhost:8000${item.productId.images[0]}`
+                                  : "/placeholder.png"
+                              }
+                              alt={item.productId?.name || "Product"}
+                              className="h-40 w-32 rounded-xl object-cover"
                             />
                           ) : (
                             <ShoppingBag
