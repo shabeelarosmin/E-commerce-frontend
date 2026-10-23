@@ -10,20 +10,47 @@ import {
   LoaderCircle,
   LockKeyhole,
   MapPin,
-  Minus,
   Package,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Truck,
 } from "lucide-react";
 
-const initialAddress = {
+const emptyAddress = {
   fullName: "",
   phone: "",
   addressLine: "",
   city: "",
   state: "",
   pincode: "",
+};
+
+// Read customer details saved during login.
+const getSavedAddress = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const savedAddress = user?.address || user?.shippingAddress || {};
+
+    return {
+      fullName: user?.name || user?.fullName || "",
+      phone: user?.phone || "",
+      addressLine:
+        savedAddress.addressLine ||
+        savedAddress.address ||
+        savedAddress.street ||
+        "",
+      city: savedAddress.city || "",
+      state: savedAddress.state || "",
+      pincode:
+        savedAddress.pinCode ||
+        savedAddress.pincode ||
+        savedAddress.postalCode ||
+        "",
+    };
+  } catch {
+    return { ...emptyAddress };
+  }
 };
 
 const inputClass =
@@ -36,11 +63,16 @@ function Checkout() {
   const navigate = useNavigate();
 
   const [cart, setCart] = useState(null);
-  const [address, setAddress] = useState(initialAddress);
+  const [address, setAddress] = useState(getSavedAddress);
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Keep address fields in sync with the logged-in account on mount.
+  useEffect(() => {
+    setAddress(getSavedAddress());
+  }, []);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -74,6 +106,7 @@ function Checkout() {
 
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
+
     setAddress((previous) => ({
       ...previous,
       [name]: value,
@@ -93,6 +126,27 @@ function Checkout() {
 
     if (!items.length) {
       setMessage("Your cart is empty.");
+      return;
+    }
+
+    const normalizedAddress = {
+      fullName: address.fullName.trim(),
+      phone: address.phone.trim(),
+      addressLine: address.addressLine.trim(),
+      city: address.city.trim(),
+      state: address.state.trim(),
+      pincode: address.pincode.trim(),
+    };
+
+    if (
+      !normalizedAddress.fullName ||
+      !normalizedAddress.phone ||
+      !normalizedAddress.addressLine ||
+      !normalizedAddress.city ||
+      !normalizedAddress.state ||
+      !normalizedAddress.pincode
+    ) {
+      setMessage("Please complete all delivery details.");
       return;
     }
 
@@ -116,12 +170,12 @@ function Checkout() {
       const orderData = {
         items: orderItems,
         shippingAddress: {
-          name: address.fullName.trim(),
-          phone: address.phone.trim(),
-          address: address.addressLine.trim(),
-          city: address.city.trim(),
-          state: address.state.trim(),
-          pincode: address.pincode.trim(),
+          name: normalizedAddress.fullName,
+          phone: normalizedAddress.phone,
+          address: normalizedAddress.addressLine,
+          city: normalizedAddress.city,
+          state: normalizedAddress.state,
+          pincode: normalizedAddress.pincode,
         },
         paymentMethod,
       };
@@ -129,6 +183,31 @@ function Checkout() {
       const response = await createOrder(orderData);
       const result = response?.data ?? response;
       const order = result?.order ?? result?.data ?? result;
+
+      // Save the latest delivery details locally for the next checkout.
+      // This does not replace saving the address in the backend database.
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+
+        if (user) {
+          const updatedUser = {
+            ...user,
+            name: user.name || normalizedAddress.fullName,
+            phone: normalizedAddress.phone,
+            address: {
+              ...(user.address || {}),
+              addressLine: normalizedAddress.addressLine,
+              city: normalizedAddress.city,
+              state: normalizedAddress.state,
+              pinCode: normalizedAddress.pincode,
+            },
+          };
+
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      } catch (storageError) {
+        console.error("Could not save delivery details locally:", storageError);
+      }
 
       // Clear cart only after successful order creation.
       try {
@@ -261,7 +340,8 @@ function Checkout() {
                     <div>
                       <h2 className="font-serif text-2xl">Delivery details</h2>
                       <p className="mt-1 text-sm text-[#928176]">
-                        Where should we send your order?
+                        Your saved details are filled in when available. You can
+                        edit them before placing your order.
                       </p>
                     </div>
                   </div>
@@ -456,6 +536,17 @@ function Checkout() {
                         item.price ?? variant.sellingPrice ?? 0,
                       );
                       const quantity = Number(item.quantity || 1);
+                      const imagePath =
+                        product.images?.[0] ||
+                        item.productId?.images?.[0] ||
+                        item.product?.images?.[0] ||
+                        "";
+
+                      const imageUrl = imagePath
+                        ? imagePath.startsWith("http")
+                          ? imagePath
+                          : `http://localhost:8000${imagePath}`
+                        : "";
 
                       return (
                         <div
@@ -465,28 +556,16 @@ function Checkout() {
                           className="flex gap-4"
                         >
                           <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F8F4EE]">
-                            <img
-                              src={
-                                item.productId?.images?.[0]
-                                  ? item.productId.images[0].startsWith("http")
-                                    ? item.productId.images[0]
-                                    : `http://localhost:8000${item.productId.images[0]}`
-                                  : item.product?.images?.[0]
-                                    ? item.product.images[0].startsWith("http")
-                                      ? item.product.images[0]
-                                      : `http://localhost:8000${item.product.images[0]}`
-                                    : ""
-                              }
-                              alt={
-                                item.productId?.name ||
-                                item.product?.name ||
-                                "Product"
-                              }
-                              className="h-full w-full object-cover"
-                              onError={(event) => {
-                                event.currentTarget.style.display = "none";
-                              }}
-                            />
+                            {imageUrl && (
+                              <img
+                                src={imageUrl}
+                                alt={product.name || item.name || "Product"}
+                                className="h-full w-full object-cover"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
+                            )}
                           </div>
 
                           <div className="min-w-0 flex-1">

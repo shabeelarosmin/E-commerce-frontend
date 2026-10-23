@@ -15,34 +15,47 @@ function Navbar() {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(
+  const [isLoggedIn, setIsLoggedIn] = useState(() =>
     Boolean(localStorage.getItem("token")),
   );
 
   const navigate = useNavigate();
 
-  // Login/logout changes update the navbar when this component mounts.
   useEffect(() => {
     const syncAuth = () => {
       setIsLoggedIn(Boolean(localStorage.getItem("token")));
     };
 
-    window.addEventListener("storage", syncAuth);
+    // Update navbar after login/logout in this tab.
     window.addEventListener("auth-change", syncAuth);
 
+    // Update navbar when localStorage changes in another tab.
+    window.addEventListener("storage", syncAuth);
+
+    // Sync again when the page becomes active.
+    window.addEventListener("focus", syncAuth);
+
     return () => {
-      window.removeEventListener("storage", syncAuth);
       window.removeEventListener("auth-change", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("focus", syncAuth);
     };
   }, []);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
+  const closeMenus = () => {
+    setMobileMenu(false);
+    setSearchOpen(false);
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+
     const query = search.trim();
 
     if (!query) return;
 
     navigate(`/products?search=${encodeURIComponent(query)}`);
+
     setSearch("");
     closeMenus();
   };
@@ -55,12 +68,8 @@ function Navbar() {
     closeMenus();
 
     window.dispatchEvent(new Event("auth-change"));
-    navigate("/login", { replace: true });
-  };
 
-  const closeMenus = () => {
-    setMobileMenu(false);
-    setSearchOpen(false);
+    navigate("/", { replace: true });
   };
 
   const navItems = [
@@ -75,7 +84,9 @@ function Navbar() {
       {/* Announcement bar */}
       <div className="flex items-center justify-center gap-2 bg-[#544339] px-3 py-2 text-center text-[9px] uppercase tracking-[2px] text-[#F8F4EE] sm:tracking-[3px]">
         <Sparkles size={11} className="text-[#C9AC91]" strokeWidth={1.3} />
+
         <span>Thoughtfully selected · Effortlessly elegant</span>
+
         <Sparkles size={11} className="text-[#C9AC91]" strokeWidth={1.3} />
       </div>
 
@@ -91,6 +102,7 @@ function Navbar() {
               }}
               className="mr-1 rounded-full p-2 transition hover:bg-[#F0E8DE] md:hidden"
               aria-label={mobileMenu ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenu}
             >
               {mobileMenu ? (
                 <X size={21} strokeWidth={1.5} />
@@ -105,16 +117,15 @@ function Navbar() {
               aria-label="ÉLORA Home"
               className="group flex items-center gap-2.5 sm:gap-3"
             >
-              {/* Circular É logo */}
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3] sm:h-14 sm:w-14">
                 É
               </div>
 
-              {/* Brand name */}
               <span className="flex flex-col items-start">
                 <span className="font-serif text-[27px] font-bold leading-none tracking-[2px] text-[#493426] transition-colors group-hover:text-[#8A6C5F] sm:text-[35px] sm:tracking-[3px] lg:text-[39px]">
                   ÉLORA
                 </span>
+
                 <span className="mt-1.5 whitespace-nowrap text-[6px] font-semibold uppercase tracking-[1.6px] text-[#967D6D] sm:text-[8px] sm:tracking-[2.5px]">
                   Your everyday elegance
                 </span>
@@ -128,15 +139,17 @@ function Navbar() {
               <Link
                 key={item.label}
                 to={item.to}
+                onClick={closeMenus}
                 className="group relative py-3 text-[9px] font-medium tracking-[1.8px] transition-colors hover:text-[#98765F] lg:text-[10px]"
               >
                 {item.label}
+
                 <span className="absolute bottom-0 left-0 h-px w-0 bg-[#98765F] transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
           </nav>
 
-          {/* Right-side icons */}
+          {/* Right-side actions */}
           <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-2">
             {/* Search */}
             <button
@@ -158,31 +171,36 @@ function Navbar() {
               )}
             </button>
 
-            {/* Account icon only — no text */}
+            {/* Profile icon */}
             <Link
               to={isLoggedIn ? "/profile" : "/login"}
               onClick={closeMenus}
               className="flex items-center justify-center rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3"
-              aria-label={isLoggedIn ? "My account" : "Sign in"}
-              title={isLoggedIn ? "My account" : "Sign in"}
+              aria-label="My Account"
+              title="My Account"
             >
-              <UserRound
-                size={20}
-                strokeWidth={1.5}
-                className="transition-colors hover:text-[#98765F]"
-              />
+              <UserRound size={20} strokeWidth={1.5} />
             </Link>
 
-            {/* Logout — visible only while logged in */}
-            {isLoggedIn && (
+            {/* Authentication button: only one button is shown */}
+            {isLoggedIn ? (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="ml-1 inline-flex items-center gap-2 rounded-lg border border-[#544339] bg-[#544339] px-3.5 py-2.5 text-[9px] font-semibold tracking-[1.4px] text-[#F8F4EE] transition duration-300 hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:px-4"
+                className="ml-1 inline-flex shrink-0 items-center gap-1.5 border border-[#BFA38A] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-[0.8px] text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] rounded-xl"
               >
-                <LogOut size={13} strokeWidth={1.6} />
-                <span>LOG OUT</span>
+                <LogOut size={14} />
+                SIGN OUT
               </button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={closeMenus}
+                className="ml-1 inline-flex shrink-0 items-center gap-1.5 border border-[#544339] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-[0.8px] text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] sm:tracking-[1.2px] rounded-xl"
+              >
+                SIGN IN
+                <ArrowRight size={14} strokeWidth={1.6} />
+              </Link>
             )}
 
             {/* Shopping bag */}
@@ -193,11 +211,7 @@ function Navbar() {
               aria-label="Shopping bag"
               title="Shopping bag"
             >
-              <ShoppingBag
-                size={20}
-                strokeWidth={1.5}
-                className="transition-transform duration-300 hover:-translate-y-0.5"
-              />
+              <ShoppingBag size={20} strokeWidth={1.5} />
             </Link>
           </div>
         </div>
@@ -220,14 +234,16 @@ function Navbar() {
                 strokeWidth={1.5}
                 className="shrink-0 text-[#98765F]"
               />
+
               <input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Discover something beautiful..."
                 className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-[#B3A294]"
                 aria-label="Search products"
               />
+
               <button
                 type="submit"
                 disabled={!search.trim()}
@@ -257,6 +273,7 @@ function Navbar() {
                   className="group flex items-center justify-between border-b border-[#E7DED3]/70 py-4 text-[10px] font-medium tracking-[2px] transition-colors last:border-b-0 hover:text-[#98765F]"
                 >
                   {item.label}
+
                   <ArrowRight
                     size={15}
                     className="transition-transform group-hover:translate-x-1"
@@ -268,22 +285,30 @@ function Navbar() {
                 <Link
                   to={isLoggedIn ? "/profile" : "/login"}
                   onClick={closeMenus}
-                  aria-label={isLoggedIn ? "My account" : "Sign in"}
-                  title={isLoggedIn ? "My account" : "Sign in"}
-                  className="flex items-center justify-center rounded-full border border-[#E7DED3] p-3 hover:bg-[#F0E8DE]"
+                  className="flex items-center gap-2 rounded-full border border-[#E7DED3] px-3 py-2.5 text-[10px] tracking-wide hover:bg-[#F0E8DE]"
                 >
-                  <UserRound size={19} strokeWidth={1.5} />
+                  <UserRound size={18} />
+                  MY ACCOUNT
                 </Link>
 
-                {isLoggedIn && (
+                {isLoggedIn ? (
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#493426] px-4 py-3 text-[12px] font-semibold tracking-[2px] text-[#F8F4EE] transition hover:bg-[#8A6C5F]"
+                    className="flex items-center justify-center gap-2 border border-[#BFA38A] bg-[#544339] px-4 py-3 text-[10px] font-semibold tracking-[1.2px] text-[#F8F4EE] hover:bg-[#8A6C5F]"
                   >
                     <LogOut size={14} />
-                    LOG OUT
+                    SIGN OUT
                   </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    onClick={closeMenus}
+                    className="flex items-center justify-center gap-2 bg-[#544339] px-4 py-3 text-[10px] font-semibold tracking-[1.2px] text-[#F8F4EE] hover:bg-[#8A6C5F]"
+                  >
+                    SIGN IN
+                    <ArrowRight size={14} />
+                  </Link>
                 )}
               </div>
             </nav>

@@ -74,13 +74,13 @@ function AdminLogin() {
 
       if (!token) {
         setError(
-          "Login response-ൽ token ലഭിച്ചില്ല. Backend login response പരിശോധിക്കുക.",
+          "Token not received in the login response. Please check the backend login response.",
         );
         return;
       }
 
       if (role && String(role).toLowerCase() !== "admin") {
-        setError("ഈ account-ന് Admin Dashboard access ഇല്ല.");
+        setError("This account does not have access to the Admin Dashboard.");
         return;
       }
 
@@ -93,10 +93,12 @@ function AdminLogin() {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       if (err.code === "ECONNABORTED") {
-        setError("Login request timeout ആയി. വീണ്ടും ശ്രമിക്കുക.");
+        setError("Login request timed out. Please try again.");
       } else if (!err.response) {
         setError(
-          "Backend connect ചെയ്യാൻ കഴിയുന്നില്ല. Server running ആണോ പരിശോധിക്കുക.",
+          setError(
+            "Unable to connect to the backend. Please check whether the server is running.",
+          ),
         );
       } else {
         const status = err.response.status;
@@ -104,17 +106,20 @@ function AdminLogin() {
 
         if (status === 404) {
           setError(
-            "Login API route കണ്ടെത്താനായില്ല. Backend route പരിശോധിക്കുക.",
+            "Login API route not found. Please check the backend route.",
           );
         } else if (status === 401) {
-          setError(backendMessage || "Email അല്ലെങ്കിൽ password തെറ്റാണ്.");
+          setError(backendMessage || "Incorrect email or password.");
         } else if (status === 403) {
-          setError(backendMessage || "ഈ account-ന് Admin access ഇല്ല.");
+          setError(
+            backendMessage || "This account does not have Admin access.",
+          );
         } else if (status === 400) {
-          setError(backendMessage || "Login details ശരിയാണോ പരിശോധിക്കുക.");
+          setError(backendMessage || "Please check your login details.");
         } else if (status >= 500) {
           setError(
-            backendMessage || "Backend server error. Terminal പരിശോധിക്കുക.",
+            backendMessage ||
+              "Backend server error. Please check the terminal.",
           );
         } else {
           setError(backendMessage || `Login failed. HTTP ${status}`);

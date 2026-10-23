@@ -29,13 +29,13 @@ function Categories() {
   const fetchCategories = async () => {
     try {
       setError("");
+
       const response = await axios.get(API_URL, authConfig());
       const data = response.data?.data ?? response.data;
+
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Categories load ചെയ്യാൻ കഴിഞ്ഞില്ല.",
-      );
+      setError(err.response?.data?.message || "Failed to load categories.");
     } finally {
       setLoading(false);
     }
@@ -47,6 +47,7 @@ function Categories() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
     setForm((previous) => ({
       ...previous,
       [name]: name === "active" ? value === "true" : value,
@@ -60,6 +61,7 @@ function Categories() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     setMessage("");
     setError("");
 
@@ -71,7 +73,7 @@ function Categories() {
     };
 
     if (!categoryData.name || !categoryData.slug) {
-      setError("Category name, slug എന്നിവ പൂരിപ്പിക്കുക.");
+      setError("Please enter both category name and slug.");
       return;
     }
 
@@ -80,18 +82,18 @@ function Categories() {
 
       if (editingId) {
         await axios.put(`${API_URL}/${editingId}`, categoryData, authConfig());
-        setMessage("Category update ചെയ്തു.");
+
+        setMessage("Category updated successfully.");
       } else {
         await axios.post(API_URL, categoryData, authConfig());
-        setMessage("Category create ചെയ്തു.");
+
+        setMessage("Category created successfully.");
       }
 
       resetForm();
       await fetchCategories();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Category save ചെയ്യാൻ കഴിഞ്ഞില്ല.",
-      );
+      setError(err.response?.data?.message || "Failed to save category.");
     } finally {
       setSaving(false);
     }
@@ -109,12 +111,16 @@ function Categories() {
 
     setMessage("");
     setError("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const handleDelete = async (category) => {
     const confirmed = window.confirm(
-      `"${category.name}" category delete ചെയ്യണോ?`,
+      `Are you sure you want to delete the "${category.name}" category?`,
     );
 
     if (!confirmed) return;
@@ -125,7 +131,7 @@ function Categories() {
     try {
       await axios.delete(`${API_URL}/${category._id}`, authConfig());
 
-      setMessage("Category delete ചെയ്തു.");
+      setMessage("Category deleted successfully.");
 
       if (editingId === category._id) {
         resetForm();
@@ -133,9 +139,7 @@ function Categories() {
 
       await fetchCategories();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Category delete ചെയ്യാൻ കഴിഞ്ഞില്ല.",
-      );
+      setError(err.response?.data?.message || "Failed to delete category.");
     }
   };
 
@@ -462,6 +466,7 @@ function Categories() {
                                 : "h-1.5 w-1.5 rounded-full bg-[#bb7566]"
                             }
                           />
+
                           {category.active !== false ? "Active" : "Inactive"}
                         </span>
                       </td>

@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,29 +14,45 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     setError("");
     setLoading(true);
 
     try {
       const response = await axios.post(
         "http://localhost:8000/api/website/auth/login",
-        { email, password },
+        {
+          email: email.trim(),
+          password,
+        },
       );
 
+      // Read login response
       const { token, user } = response.data;
 
+      // Token is required for authentication
+      if (!token) {
+        throw new Error(
+          "Login successful, but authentication token is missing.",
+        );
+      }
+
+      // Save login details
       localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
 
-      const from = location.state?.from;
-      const destination = from
-        ? `${from.pathname || "/products"}${from.search || ""}${from.hash || ""}`
-        : "/products";
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
 
-      navigate(destination, { replace: true });
+      // Notify Navbar that login status has changed
+      window.dispatchEvent(new Event("auth-change"));
+
+      // Navigate to Home after successful login
+      navigate("/", { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message ||
+          err.message ||
           "Invalid email or password. Please try again.",
       );
     } finally {
@@ -53,6 +68,7 @@ export default function Login() {
           <h1 className="font-serif text-4xl tracking-[0.2em] text-[#544339]">
             ÉLORA
           </h1>
+
           <p className="mt-2 text-[9px] tracking-[0.4em] text-[#8A6C5F]">
             YOUR EVERYDAY ELEGANCE
           </p>
@@ -124,7 +140,7 @@ export default function Login() {
 
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((previous) => !previous)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   className="text-[#8A6C5F] hover:text-[#544339]"
                 >
@@ -133,6 +149,7 @@ export default function Login() {
               </div>
             </div>
 
+            {/* Error message */}
             {error && (
               <p
                 role="alert"
@@ -146,19 +163,22 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-3 bg-[#544339] py-4 text-[11px] tracking-[0.2em] text-[#F8F4EE] transition hover:bg-[#6B5145] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-3 bg-[#544339] py-4 text-[11px] tracking-[0.2em] text-[#F8F4EE] transition hover:bg-[#6B5145] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "SIGNING IN..." : "SIGN IN"}
+
               {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
-          {/* Divider */}
+          {/* Register link */}
           <div className="my-7 flex items-center gap-4">
             <div className="h-px flex-1 bg-[#E0D9CF]" />
+
             <span className="text-[9px] tracking-[0.18em] text-[#8A6C5F]">
               NEW TO ÉLORA?
             </span>
+
             <div className="h-px flex-1 bg-[#E0D9CF]" />
           </div>
 
@@ -177,10 +197,10 @@ export default function Login() {
         {/* Back to store */}
         <div className="mt-6 text-center">
           <Link
-            to="/products"
+            to="/"
             className="text-xs text-[#8A6C5F] underline underline-offset-4 transition hover:text-[#544339]"
           >
-            Continue browsing
+            Back to Home
           </Link>
         </div>
 

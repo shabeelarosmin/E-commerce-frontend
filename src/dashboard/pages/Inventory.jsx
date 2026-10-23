@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   getProductVariants,
@@ -28,7 +27,10 @@ function Inventory() {
 
   const fetchInventory = async (isRefresh = false) => {
     try {
-      if (isRefresh) setRefreshing(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+
       setError("");
 
       const response = await getProductVariants();
@@ -38,7 +40,7 @@ function Inventory() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Inventory load ചെയ്യാൻ കഴിഞ്ഞില്ല. Login, API എന്നിവ പരിശോധിക്കുക.",
+          "Failed to load inventory. Please check your login and API connection.",
       );
     } finally {
       setLoading(false);
@@ -143,11 +145,13 @@ function Inventory() {
       !Number.isInteger(newStock) ||
       newStock < 0
     ) {
-      setError("Stock quantity പൂജ്യം അല്ലെങ്കിൽ positive integer ആയിരിക്കണം.");
+      setError("Stock quantity must be zero or a positive whole number.");
       return;
     }
 
-    const productRef = variant.ProductId || variant.productId;
+    const productRef =
+      variant.ProductId || variant.productId || variant.product;
+
     const productId =
       productRef && typeof productRef === "object"
         ? productRef._id
@@ -177,12 +181,13 @@ function Inventory() {
         ),
       );
 
-      setMessage(`Stock updated successfully for SKU ${variant.sku}.`);
+      setMessage(`Stock updated successfully for SKU ${variant.sku || "N/A"}.`);
+
       cancelStockEdit();
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Stock update ചെയ്യാൻ കഴിഞ്ഞില്ല. Backend update service പരിശോധിക്കുക.",
+          "Failed to update stock. Please check the backend update service.",
       );
     } finally {
       setSavingId(null);
@@ -201,16 +206,17 @@ function Inventory() {
   return (
     <main className="min-h-screen bg-[#f7f3ed] px-4 py-6 sm:px-6 lg:px-9 lg:py-9">
       <div className="mx-auto max-w-[1600px] space-y-7">
-
         {/* HEADER */}
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
             <p className="mb-2 text-[10px] font-extrabold tracking-[2.5px] text-[#a17b50]">
               ÉLORA / STOCK MANAGEMENT
             </p>
+
             <h1 className="font-serif text-3xl font-medium tracking-tight text-[#39291f] sm:text-4xl">
               Inventory Management
             </h1>
+
             <p className="mt-2 text-sm text-[#8d8177]">
               Monitor stock levels and keep your fashion collection organised.
             </p>
@@ -287,9 +293,11 @@ function Inventory() {
             <p className="mb-2 text-[10px] font-extrabold tracking-[2px] text-[#a17b50]">
               STOCK OVERVIEW
             </p>
+
             <h2 className="font-serif text-2xl text-[#39291f]">
               All Inventory
             </h2>
+
             <p className="mt-2 text-sm text-[#958579]">
               View stock levels and update individual variants.
             </p>
@@ -299,6 +307,7 @@ function Inventory() {
                 <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-[#a18e7b]">
                   ⌕
                 </span>
+
                 <input
                   type="search"
                   className={`${fieldClass} pl-10`}
@@ -328,16 +337,19 @@ function Inventory() {
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#eadcc9] bg-[#f7efe4] font-serif text-3xl text-[#9a774f]">
                 ◈
               </span>
+
               <h3 className="mt-5 font-serif text-xl text-[#51392b]">
                 {variants.length === 0
                   ? "No inventory records"
                   : "No matching variants"}
               </h3>
+
               <p className="mx-auto mt-2 max-w-sm text-sm text-[#958579]">
                 {variants.length === 0
                   ? "Add product variants to begin tracking inventory."
                   : "Try a different search term or stock filter."}
               </p>
+
               {(search || stockFilter !== "all") && (
                 <button
                   type="button"
@@ -391,10 +403,12 @@ function Inventory() {
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#eadcc9] bg-[#f7efe4] text-lg text-[#9a774f]">
                               ✦
                             </span>
+
                             <div>
                               <p className="font-semibold text-[#51392b]">
                                 {getProductName(variant)}
                               </p>
+
                               <p className="mt-1 text-[10px] text-[#a09284]">
                                 Product variant
                               </p>
@@ -406,6 +420,7 @@ function Inventory() {
                           <p className="text-sm font-semibold text-[#51392b]">
                             {variant.size || "—"}
                           </p>
+
                           <p className="mt-1 text-xs text-[#958579]">
                             {variant.color || "—"}
                           </p>
@@ -435,7 +450,7 @@ function Inventory() {
                               onChange={(event) =>
                                 setStockInput(event.target.value)
                               }
-                              aria-label={`New stock for ${variant.sku}`}
+                              aria-label={`New stock for ${variant.sku || "variant"}`}
                             />
                           ) : (
                             <span className="text-sm font-semibold text-[#51392b]">
@@ -468,6 +483,7 @@ function Inventory() {
                                 >
                                   {isSaving ? "Saving..." : "Save"}
                                 </button>
+
                                 <button
                                   type="button"
                                   className={buttonSecondary}
@@ -511,7 +527,14 @@ function Inventory() {
   );
 }
 
-function StatCard({ symbol, title, value, note, dark = false, warning = false }) {
+function StatCard({
+  symbol,
+  title,
+  value,
+  note,
+  dark = false,
+  warning = false,
+}) {
   const cardClass = dark
     ? "border-[#51392b] bg-[#51392b] text-white"
     : "border-[#e9dfd3] bg-[#fffdf9] text-[#39291f]";
@@ -534,6 +557,7 @@ function StatCard({ symbol, title, value, note, dark = false, warning = false })
         >
           {title}
         </p>
+
         <span
           className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${iconClass}`}
         >
@@ -544,9 +568,7 @@ function StatCard({ symbol, title, value, note, dark = false, warning = false })
       <h2 className="mt-5 break-words font-serif text-3xl">{value}</h2>
 
       <p
-        className={`mt-2 text-xs ${
-          dark ? "text-white/55" : "text-[#a09284]"
-        }`}
+        className={`mt-2 text-xs ${dark ? "text-white/55" : "text-[#a09284]"}`}
       >
         {note}
       </p>

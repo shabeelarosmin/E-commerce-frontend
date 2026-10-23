@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getWebsiteProducts } from "../../api/productApi";
 
 const API_BASE_URL = "http://localhost:8000";
@@ -38,19 +38,56 @@ function getOriginalPrice(product) {
   return Number(product.originalPrice ?? product.mrp ?? 0);
 }
 
-function getCategoryName(product) {
-  if (typeof product.categoryId === "object" && product.categoryId) {
-    return product.categoryId.name || "";
-  }
+function getCategoryObject(product) {
+  const category =
+    product.categoryId ?? product.category ?? product.category_id ?? null;
 
-  if (typeof product.category === "object" && product.category) {
-    return product.category.name || "";
-  }
+  return category && typeof category === "object" ? category : null;
+}
+
+function getCategoryName(product) {
+  const category = getCategoryObject(product);
 
   return (
+    category?.name ||
     product.categoryName ||
-    (typeof product.category === "string" ? product.category : "")
+    (typeof product.category === "string" ? product.category : "") ||
+    (typeof product.categoryId === "string" ? product.categoryId : "")
   );
+}
+
+function getCategorySlug(product) {
+  const category = getCategoryObject(product);
+
+  return category?.slug || product.categorySlug || product.category_slug || "";
+}
+
+function getCategoryId(product) {
+  const category = getCategoryObject(product);
+
+  return String(
+    category?._id ||
+      category?.id ||
+      (typeof product.categoryId === "string" ? product.categoryId : "") ||
+      (typeof product.category === "string" &&
+      /^[a-f\d]{24}$/i.test(product.category)
+        ? product.category
+        : ""),
+  );
+}
+
+function getCategoryKey(product) {
+  return (
+    getCategorySlug(product) ||
+    getCategoryName(product) ||
+    getCategoryId(product)
+  );
+}
+
+function normalizeValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function getWishlist() {
@@ -110,7 +147,7 @@ function ProductCard({ product, isWishlisted, onToggleWishlist, onQuickView }) {
     <article className="group min-w-0">
       <div className="relative aspect-[3/4] overflow-hidden bg-[#EAE0D4]">
         <Link
-          to={`/products/${product._id}`}
+          to={`/products/${id}`}
           aria-label={`View ${product.name}`}
           className="absolute inset-0"
         >
@@ -278,15 +315,21 @@ function QuickView({ product, onClose }) {
 }
 
 function Products() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlCategory = searchParams.get("category") || "";
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
   const [wishlist, setWishlist] = useState(getWishlist);
   const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
+
+  // URL category-um category filter button-um sync cheyyunnu.
+  const selectedCategory = urlCategory || "All";
 
   useEffect(() => {
     let mounted = true;
@@ -314,7 +357,7 @@ function Products() {
           setError(
             err.response?.data?.message ||
               err.message ||
-              "Products load ചെയ്യാൻ കഴിഞ്ഞില്ല.",
+              "Failed to load products. Please try again.",
           );
         }
       } finally {
@@ -345,21 +388,39 @@ function Products() {
   }, [quickViewProduct]);
 
   const categories = useMemo(() => {
-    const names = products
-      .map(getCategoryName)
-      .filter((name) => typeof name === "string" && name.trim())
-      .map((name) => name.trim());
+    const categoryMap = new Map();
 
-    return ["All", ...new Set(names)];
+    products.forEach((product) => {
+      const name = getCategoryName(product);
+      const key = getCategoryKey(product);
+
+      if (name && key && !categoryMap.has(key)) {
+        categoryMap.set(key, { name, key });
+      }
+    });
+
+    return [{ name: "All", key: "All" }, ...Array.from(categoryMap.values())];
   }, [products]);
 
+  // URL-il ninnulla category slug/name/id use cheythu products filter cheyyunnu.
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    if (selectedCategory !== "All") {
-      result = result.filter(
-        (product) => getCategoryName(product) === selectedCategory,
-      );
+    if (urlCategory) {
+      const selectedKey = normalizeValue(urlCategory);
+
+      result = result.filter((product) => {
+        const possibleValues = [
+          getCategorySlug(product),
+          getCategoryName(product),
+          getCategoryId(product),
+          getCategoryKey(product),
+        ]
+          .filter(Boolean)
+          .map(normalizeValue);
+
+        return possibleValues.includes(selectedKey);
+      });
     }
 
     const query = search.trim().toLowerCase();
@@ -393,16 +454,16 @@ function Products() {
     } else if (sortBy === "featured") {
       result.sort(
         (a, b) =>
-          Number(b.featured || b.isFeatured) -
-          Number(a.featured || a.isFeatured),
+          Number(Boolean(b.featured || b.isFeatured)) -
+          Number(Boolean(a.featured || a.isFeatured)),
       );
     }
 
     return result;
-  }, [products, search, selectedCategory, sortBy, showWishlistOnly, wishlist]);
+  }, [products, urlCategory, search, sortBy, showWishlistOnly, wishlist]);
 
   const activeFilterCount =
-    Number(selectedCategory !== "All") +
+    Number(Boolean(urlCategory)) +
     Number(Boolean(search.trim())) +
     Number(showWishlistOnly);
 
@@ -416,21 +477,34 @@ function Products() {
     );
   }
 
+  function selectCategory(category) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (category === "All") {
+      nextParams.delete("category");
+    } else {
+      nextParams.set("category", category);
+    }
+
+    setSearchParams(nextParams);
+  }
+
   function clearFilters() {
     setSearch("");
-    setSelectedCategory("All");
     setSortBy("featured");
     setShowWishlistOnly(false);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("category");
+    setSearchParams(nextParams);
   }
 
   return (
     <main className="min-h-screen bg-[#F8F4EE] text-[#544339]">
-      {/* Announcement */}
       <div className="bg-[#544339] px-4 py-3 text-center text-[9px] tracking-[0.18em] text-[#F8F4EE] sm:text-[10px]">
         THOUGHTFULLY CURATED · TIMELESS BY DESIGN · ÉLORA
       </div>
 
-      {/* Editorial hero */}
       <header className="relative overflow-hidden border-b border-[#E6DBCF] px-5 py-14 text-center sm:py-20 lg:py-24">
         <div className="pointer-events-none absolute left-0 top-0 h-40 w-40 rounded-full bg-[#EAE0D4]/60 blur-3xl" />
 
@@ -454,13 +528,19 @@ function Products() {
         </p>
       </header>
 
-      {/* Product collection */}
       <section className="mx-auto max-w-[1500px] px-5 py-9 sm:px-8 sm:py-12 lg:px-14 lg:py-14">
-        {/* Toolbar */}
         <div className="flex flex-col gap-5 border-b border-[#E4D8CB] pb-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.22em]">
-              The Collection
+              {urlCategory
+                ? categories.find(
+                    (category) =>
+                      normalizeValue(category.key) ===
+                        normalizeValue(urlCategory) ||
+                      normalizeValue(category.name) ===
+                        normalizeValue(urlCategory),
+                  )?.name || urlCategory
+                : "The Collection"}
             </p>
 
             <p className="mt-2 text-[11px] text-[#9A8777]">
@@ -522,20 +602,23 @@ function Products() {
           </div>
         </div>
 
-        {/* Category filters */}
         {!loading && !error && categories.length > 1 && (
           <nav
             aria-label="Filter products by category"
             className="mt-7 flex gap-2.5 overflow-x-auto pb-3"
           >
             {categories.map((category) => {
-              const active = selectedCategory === category;
+              const active =
+                category.key === "All"
+                  ? !urlCategory
+                  : normalizeValue(category.key) ===
+                    normalizeValue(urlCategory);
 
               return (
                 <button
-                  key={category}
+                  key={category.key}
                   type="button"
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => selectCategory(category.key)}
                   aria-pressed={active}
                   className={`shrink-0 border px-4 py-3 text-[9px] uppercase tracking-[0.15em] transition sm:px-5 ${
                     active
@@ -543,14 +626,13 @@ function Products() {
                       : "border-[#DCCDBF] text-[#79695C] hover:border-[#544339]"
                   }`}
                 >
-                  {category}
+                  {category.name}
                 </button>
               );
             })}
           </nav>
         )}
 
-        {/* Active filters */}
         {activeFilterCount > 0 && !loading && !error && (
           <div className="mt-3 flex items-center justify-between gap-4">
             <p className="text-[10px] text-[#8D7B6D]">Refine your selection</p>
@@ -565,7 +647,6 @@ function Products() {
           </div>
         )}
 
-        {/* Loading skeleton */}
         {loading && (
           <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-6 lg:grid-cols-4 lg:gap-x-8">
             {Array.from({ length: 8 }).map((_, index) => (
@@ -578,7 +659,6 @@ function Products() {
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className="py-20 text-center">
             <p className="font-serif text-3xl">A little pause.</p>
@@ -594,7 +674,6 @@ function Products() {
           </div>
         )}
 
-        {/* Product grid */}
         {!loading && !error && filteredProducts.length > 0 && (
           <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-12 md:grid-cols-3 lg:mt-10 lg:grid-cols-4 lg:gap-x-8 lg:gap-y-14">
             {filteredProducts.map((product) => (
@@ -609,10 +688,13 @@ function Products() {
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && filteredProducts.length === 0 && (
           <div className="py-24 text-center">
-            <p className="font-serif text-3xl">Nothing found, just yet.</p>
+            <p className="font-serif text-3xl">
+              {urlCategory
+                ? "No pieces in this category yet."
+                : "Nothing found, just yet."}
+            </p>
 
             <p className="mx-auto mt-4 max-w-sm text-xs leading-6 text-[#927F70]">
               Try another search or clear your filters to discover more pieces
@@ -630,7 +712,6 @@ function Products() {
         )}
       </section>
 
-      {/* Brand statement */}
       {!loading && !error && filteredProducts.length > 0 && (
         <section className="border-t border-[#E6DBCF] bg-[#39291f] px-5 py-14 text-center sm:py-20">
           <p className="text-[9px] uppercase tracking-[0.3em] text-[#F3E8D3]">

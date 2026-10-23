@@ -78,10 +78,14 @@ function ProductCard({ product, latest = false }) {
       ? product.categoryId?.name
       : (product.category?.name ?? product.category);
 
+  const productDetailsUrl = `/products/${productId}`;
+
   return (
     <article className="group min-w-0">
+      {/* Product image: opens individual product details */}
       <Link
-        to={`/product/${productId}`}
+        to={productDetailsUrl}
+        aria-label={`View ${product.name || "product"} details`}
         className="relative block aspect-[3/4] overflow-hidden bg-[#E0D9CF]"
       >
         {image && !imageFailed ? (
@@ -112,7 +116,8 @@ function ProductCard({ product, latest = false }) {
           </p>
         )}
 
-        <Link to={`/product/${productId}`}>
+        {/* Product name: opens individual product details */}
+        <Link to={productDetailsUrl}>
           <h3 className="font-serif text-lg text-[#544339] transition-colors hover:text-[#8A6C5F] sm:text-xl">
             {product.name}
           </h3>
@@ -122,8 +127,9 @@ function ProductCard({ product, latest = false }) {
           ₹{price.toLocaleString("en-IN")}
         </p>
 
+        {/* Discover Product: opens ALL products */}
         <Link
-          to={`/product/${productId}`}
+          to="/products"
           className="inline-block border-b border-[#BFA38A] pb-1 pt-1 text-xs text-[#8A6C5F] transition-colors hover:border-[#544339] hover:text-[#544339]"
         >
           Discover Product ↗
@@ -343,7 +349,7 @@ function Home() {
         <div className="mx-auto mt-7 h-px w-16 bg-[#BFA38A]" />
       </section>
 
-      {/* Categories with left and right arrows */}
+      {/* Categories */}
       <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8 lg:px-12 lg:pb-24">
         <SectionHeading
           eyebrow="EXPLORE ÉLORA"
@@ -368,7 +374,6 @@ function Home() {
 
         {!categoryLoading && !categoryError && categories.length > 0 && (
           <div className="relative">
-            {/* Left arrow */}
             <button
               type="button"
               onClick={() => scrollCategories(-1)}
@@ -378,7 +383,6 @@ function Home() {
               ‹
             </button>
 
-            {/* Horizontal scroll area */}
             <div
               ref={categoryScrollRef}
               className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-1 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-6 lg:gap-7"
@@ -430,7 +434,6 @@ function Home() {
               })}
             </div>
 
-            {/* Right arrow */}
             <button
               type="button"
               onClick={() => scrollCategories(1)}
@@ -443,7 +446,7 @@ function Home() {
         )}
       </section>
 
-      {/* Featured products */}
+      {/* Featured products - The ÉLORA Edit */}
       <section className="bg-[#E0D9CF]">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[210px_1fr] lg:gap-10 lg:px-12 lg:py-20">
           <div className="flex flex-col items-start justify-center">
@@ -671,24 +674,24 @@ function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 sm:flex-row">
           <Link
             to="/"
-            className="font-serif text-2xl tracking-[0.2em] text-[#544339]"
+            className="font-serif text-2xl tracking-[0.2em] text-[#F3E8D3]"
           >
             ÉLORA
           </Link>
 
-          <div className="flex flex-wrap justify-center gap-5 text-xs text-[#544339]">
-            <Link to="/" className="hover:text-[#8A6C5F]">
+          <div className="flex flex-wrap justify-center gap-5 text-xs text-[#F3E8D3]">
+            <Link to="/" className="hover:text-[#BFA38A]">
               Home
             </Link>
-            <Link to="/products" className="hover:text-[#8A6C5F]">
+            <Link to="/products" className="hover:text-[#BFA38A]">
               Shop
             </Link>
-            <Link to="/products" className="hover:text-[#8A6C5F]">
+            <Link to="/products" className="hover:text-[#BFA38A]">
               Collections
             </Link>
           </div>
 
-          <p className="text-xs text-[#8A6C5F]">
+          <p className="text-xs text-[#F3E8D3]">
             © {new Date().getFullYear()} ÉLORA. All rights reserved.
           </p>
         </div>

@@ -8,13 +8,19 @@ import {
   CreditCard,
   CalendarDays,
   ShoppingBag,
+  X,
   XCircle,
   RefreshCw,
   CheckCircle2,
   Clock3,
   Truck,
+  Eye,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { getCustomerOrders, cancelOrder } from "../../api/orderApi";
+
+const API_BASE_URL = "http://localhost:8000";
 
 const formatPrice = (price) => `₹${Number(price || 0).toLocaleString("en-IN")}`;
 
@@ -23,9 +29,7 @@ const formatDate = (date) => {
 
   const parsed = new Date(date);
 
-  if (Number.isNaN(parsed.getTime())) {
-    return "Date unavailable";
-  }
+  if (Number.isNaN(parsed.getTime())) return "Date unavailable";
 
   return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -34,39 +38,40 @@ const formatDate = (date) => {
   });
 };
 
+const normalizeStatus = (status = "") =>
+  status.toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
+
 const getStatusStyle = (status = "") => {
-  const value = status.toLowerCase();
+  const value = normalizeStatus(status);
 
   if (value === "delivered") {
-    return "bg-green-50 text-green-800 border-green-200";
+    return "border-green-200 bg-green-50 text-green-800";
   }
 
-  if (value === "cancelled" || value === "canceled") {
-    return "bg-red-50 text-red-700 border-red-200";
+  if (["cancelled", "canceled"].includes(value)) {
+    return "border-red-200 bg-red-50 text-red-700";
   }
 
-  if (value === "shipped" || value === "out_for_delivery") {
-    return "bg-blue-50 text-blue-700 border-blue-200";
+  if (["shipped", "out_for_delivery"].includes(value)) {
+    return "border-blue-200 bg-blue-50 text-blue-700";
   }
 
-  if (value === "confirmed" || value === "placed") {
-    return "bg-[#F3E8D3] text-[#795C45] border-[#D9C3A8]";
+  if (["confirmed", "placed", "pending", "processing"].includes(value)) {
+    return "border-[#D9C3A8] bg-[#F3E8D3] text-[#795C45]";
   }
 
-  return "bg-[#E0D9CF]/40 text-[#544339] border-[#E0D9CF]";
+  return "border-[#E0D9CF] bg-[#E0D9CF]/40 text-[#544339]";
 };
 
 const trackingSteps = [
-  { key: "placed", label: "Order Placed", icon: CheckCircle2 },
+  { key: "placed", label: "Order placed", icon: CheckCircle2 },
   { key: "confirmed", label: "Confirmed", icon: Package },
   { key: "shipped", label: "Shipped", icon: Truck },
-  { key: "out_for_delivery", label: "Out for Delivery", icon: MapPin },
+  { key: "out_for_delivery", label: "Out for delivery", icon: MapPin },
   { key: "delivered", label: "Delivered", icon: CheckCircle2 },
 ];
 
 const getTrackingStep = (status = "") => {
-  const value = status.toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
-
   const statusSteps = {
     placed: 0,
     pending: 0,
@@ -78,157 +83,19 @@ const getTrackingStep = (status = "") => {
     delivered: 4,
   };
 
-  return statusSteps[value] ?? -1;
+  return statusSteps[normalizeStatus(status)] ?? -1;
 };
 
-function OrderTracking({ status }) {
-  const normalizedStatus = (status || "")
-    .toLowerCase()
-    .replaceAll("-", "_")
-    .replaceAll(" ", "_");
-
-  const cancelled = ["cancelled", "canceled"].includes(normalizedStatus);
-  const currentStep = getTrackingStep(normalizedStatus);
-
-  if (cancelled) {
-    return (
-      <div className="my-6 border border-red-200 bg-red-50 p-4">
-        <div className="flex items-center gap-3 text-red-700">
-          <XCircle size={22} />
-          <div>
-            <p className="font-medium">Order Cancelled</p>
-            <p className="mt-1 text-xs">
-              This order is no longer being processed.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+const getProduct = (item) => {
+  if (item?.productId && typeof item.productId === "object") {
+    return item.productId;
   }
 
-  return (
-    <section className="my-6 border border-[#E0D9CF] bg-white/60 p-4 sm:p-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] tracking-[0.18em] text-[#8A6C5F]">
-            ORDER JOURNEY
-          </p>
-          <h3 className="mt-1 font-serif text-xl">Track your order</h3>
-        </div>
-
-        <span className="border border-[#D9C3A8] bg-[#F3E8D3] px-3 py-2 text-[10px] uppercase tracking-wide text-[#795C45]">
-          {status?.replaceAll("_", " ") || "Processing"}
-        </span>
-      </div>
-
-      {currentStep === -1 ? (
-        <p className="text-sm text-[#8A6C5F]">
-          Tracking progress is not available for this status yet.
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-5">
-          {trackingSteps.map((step, index) => {
-            const StepIcon = step.icon;
-            const completed = index <= currentStep;
-            const current = index === currentStep;
-
-            return (
-              <div key={step.key} className="relative">
-                <div className="flex items-center sm:flex-col sm:items-center sm:text-center">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
-                      completed
-                        ? "border-[#544339] bg-[#544339] text-white"
-                        : "border-[#D9C3A8] bg-[#F8F4EE] text-[#A99A8C]"
-                    }`}
-                  >
-                    <StepIcon size={18} />
-                  </div>
-
-                  <div className="ml-3 sm:ml-0 sm:mt-3">
-                    <p
-                      className={`text-xs ${
-                        completed
-                          ? "font-semibold text-[#544339]"
-                          : "text-[#A99A8C]"
-                      }`}
-                    >
-                      {step.label}
-                    </p>
-
-                    {current && (
-                      <p className="mt-1 text-[10px] text-[#8A6C5F]">
-                        Current status
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {index < trackingSteps.length - 1 && (
-                  <div
-                    className={`hidden h-px sm:absolute sm:left-[calc(50%+25px)] sm:top-5 sm:block sm:w-[calc(100%-30px)] ${
-                      index < currentStep ? "bg-[#544339]" : "bg-[#E0D9CF]"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-const API_BASE_URL = "http://localhost:8000";
-
-const getProductImage = (item) => {
-  const product =
-    item?.productId && typeof item.productId === "object"
-      ? item.productId
-      : item?.product && typeof item.product === "object"
-        ? item.product
-        : null;
-
-  const variant =
-    item?.variantId && typeof item.variantId === "object"
-      ? item.variantId
-      : item?.variant && typeof item.variant === "object"
-        ? item.variant
-        : null;
-
-  const image =
-    product?.images?.[0]?.url ||
-    product?.images?.[0]?.image ||
-    product?.images?.[0] ||
-    product?.image ||
-    item?.images?.[0] ||
-    item?.image ||
-    variant?.images?.[0] ||
-    variant?.image ||
-    "";
-
-  if (!image || typeof image !== "string") {
-    return "/placeholder.png";
+  if (item?.product && typeof item.product === "object") {
+    return item.product;
   }
 
-  // Full URL already exists
-  if (image.startsWith("http://") || image.startsWith("https://")) {
-    return image;
-  }
-
-  // Local backend upload path
-  return `${API_BASE_URL}/${image.replace(/^\/+/, "")}`;
-};
-const getProductName = (item) => {
-  const product =
-    item?.productId && typeof item.productId === "object"
-      ? item.productId
-      : item?.product && typeof item.product === "object"
-        ? item.product
-        : null;
-
-  return product?.name || item?.name || item?.productName || "Product";
+  return {};
 };
 
 const getVariant = (item) => {
@@ -240,8 +107,409 @@ const getVariant = (item) => {
     return item.variant;
   }
 
-  return null;
+  return {};
 };
+
+const getProductName = (item) => {
+  const product = getProduct(item);
+  return product.name || item?.name || item?.productName || "Product";
+};
+
+const getProductImage = (item) => {
+  const product = getProduct(item);
+  const variant = getVariant(item);
+
+  const image =
+    product?.images?.[0]?.url ||
+    product?.images?.[0]?.image ||
+    product?.images?.[0] ||
+    product?.image ||
+    item?.image ||
+    variant?.images?.[0] ||
+    variant?.image ||
+    "";
+
+  if (!image || typeof image !== "string") return "/placeholder.png";
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  return `${API_BASE_URL}/${image.replace(/^\/+/, "")}`;
+};
+
+function OrderTracking({ status }) {
+  const normalizedStatus = normalizeStatus(status);
+  const cancelled = ["cancelled", "canceled"].includes(normalizedStatus);
+  const currentStep = getTrackingStep(status);
+
+  if (cancelled) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+        <div className="flex items-start gap-3 text-red-700">
+          <XCircle size={23} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">Order cancelled</p>
+            <p className="mt-1 text-sm leading-6">
+              This order is no longer being processed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="border border-[#E0D9CF] bg-white/70 p-4 sm:p-6">
+      <div className="mb-6">
+        <p className="text-[10px] tracking-[0.2em] text-[#8A6C5F]">
+          ORDER JOURNEY
+        </p>
+        <h3 className="mt-2 font-serif text-2xl">Track your order</h3>
+        <p className="mt-2 text-sm text-[#8A6C5F]">
+          Current status:{" "}
+          <span className="font-semibold capitalize text-[#544339]">
+            {status?.replaceAll("_", " ") || "Processing"}
+          </span>
+        </p>
+      </div>
+
+      {currentStep === -1 ? (
+        <p className="text-sm leading-6 text-[#8A6C5F]">
+          Tracking progress is not available for this status yet.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {trackingSteps.map((step, index) => {
+            const StepIcon = step.icon;
+            const completed = index <= currentStep;
+            const current = index === currentStep;
+
+            return (
+              <div key={step.key} className="flex items-start gap-3">
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                    completed
+                      ? "border-[#544339] bg-[#544339] text-white"
+                      : "border-[#D9C3A8] bg-[#F8F4EE] text-[#A99A8C]"
+                  }`}
+                >
+                  <StepIcon size={17} />
+                </div>
+
+                <div className="flex-1 border-b border-[#E0D9CF] pb-4">
+                  <p
+                    className={`text-sm ${
+                      completed
+                        ? "font-semibold text-[#544339]"
+                        : "text-[#A99A8C]"
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+
+                  {current && (
+                    <p className="mt-1 text-xs text-[#8A6C5F]">
+                      Your order is at this stage.
+                    </p>
+                  )}
+                </div>
+
+                {completed && (
+                  <CheckCircle2
+                    size={17}
+                    className="mt-1 shrink-0 text-[#718565]"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function OrderDetailsModal({ order, onClose }) {
+  if (!order) return null;
+
+  const status = order.orderStatus || "processing";
+  const shipping = order.shippingAddress || {};
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#241A15]/55 p-3 backdrop-blur-md sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-details-title"
+        className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto border border-[#DCCBBB] bg-[#FCFAF6] shadow-[0_25px_100px_rgba(0,0,0,0.3)]"
+      >
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#E0D9CF] bg-[#FCFAF6]/95 px-5 py-5 backdrop-blur sm:px-7">
+          <div className="min-w-0">
+            <p className="text-[9px] tracking-[0.25em] text-[#8A6C5F]">
+              ÉLORA / ORDER DETAILS
+            </p>
+            <h2
+              id="order-details-title"
+              className="mt-2 font-serif text-2xl sm:text-3xl"
+            >
+              Your order
+            </h2>
+            <p className="mt-2 break-all text-xs text-[#8A6C5F]">
+              Reference: #{order._id}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close order details"
+            className="flex h-10 w-10 shrink-0 items-center justify-center border border-[#DCCBBB] transition hover:bg-[#F0E7DD]"
+          >
+            <X size={19} />
+          </button>
+        </header>
+
+        <div className="space-y-7 p-5 sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-[#E0D9CF] bg-[#F8F4EE] p-4">
+            <div>
+              <p className="text-[10px] tracking-[0.15em] text-[#8A6C5F]">
+                ORDER DATE
+              </p>
+              <p className="mt-2 flex items-center gap-2 text-sm">
+                <CalendarDays size={15} />
+                {formatDate(order.createdAt)}
+              </p>
+            </div>
+
+            <span
+              className={`inline-flex items-center gap-2 border px-3 py-2 text-[10px] font-semibold uppercase tracking-wide ${getStatusStyle(status)}`}
+            >
+              <Clock3 size={14} />
+              {status.replaceAll("_", " ")}
+            </span>
+          </div>
+
+          <OrderTracking status={status} />
+
+          <section>
+            <h3 className="mb-4 font-serif text-xl">Items in your order</h3>
+
+            <div className="divide-y divide-[#E0D9CF] border-y border-[#E0D9CF]">
+              {(order.items || []).map((item, index) => {
+                const product = getProduct(item);
+                const variant = getVariant(item);
+                const quantity = Number(item.quantity || 0);
+                const price = Number(
+                  item.price ?? item.sellingPrice ?? variant.sellingPrice ?? 0,
+                );
+                const subtotal = Number(item.subtotal ?? price * quantity);
+
+                return (
+                  <div
+                    key={item._id || index}
+                    className="flex items-start gap-4 py-4"
+                  >
+                    <div className="h-24 w-20 shrink-0 overflow-hidden border border-[#E0D9CF] bg-[#F8F4EE]">
+                      <img
+                        src={getProductImage(item)}
+                        alt={getProductName(item)}
+                        className="h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = "/placeholder.png";
+                        }}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">
+                        {getProductName(item)}
+                      </p>
+                      <p className="mt-2 text-xs text-[#8A6C5F]">
+                        Size: {item.size || variant.size || "-"}
+                        {" · "}
+                        Color: {item.color || variant.color || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-[#8A6C5F]">
+                        Quantity: {quantity}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold">
+                        {formatPrice(subtotal)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <section className="border border-[#E0D9CF] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <CreditCard size={17} className="text-[#8A6C5F]" />
+                <h3 className="text-[10px] font-semibold tracking-[0.13em]">
+                  PAYMENT DETAILS
+                </h3>
+              </div>
+
+              <p className="text-sm">
+                {order.paymentMethod || "Not specified"}
+              </p>
+              <p className="mt-2 text-xs text-[#8A6C5F]">
+                Payment status:{" "}
+                <span className="capitalize text-[#544339]">
+                  {order.paymentStatus || "Pending"}
+                </span>
+              </p>
+            </section>
+
+            <section className="border border-[#E0D9CF] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin size={17} className="text-[#8A6C5F]" />
+                <h3 className="text-[10px] font-semibold tracking-[0.13em]">
+                  DELIVERY ADDRESS
+                </h3>
+              </div>
+
+              <div className="text-sm leading-6">
+                {shipping.name && <p>{shipping.name}</p>}
+                {shipping.phone && <p>{shipping.phone}</p>}
+                {shipping.address && <p>{shipping.address}</p>}
+                {(shipping.city || shipping.state) && (
+                  <p>
+                    {[shipping.city, shipping.state].filter(Boolean).join(", ")}
+                    {shipping.pincode ? ` - ${shipping.pincode}` : ""}
+                  </p>
+                )}
+
+                {!shipping.name &&
+                  !shipping.phone &&
+                  !shipping.address &&
+                  !shipping.city &&
+                  !shipping.state && (
+                    <p className="text-[#8A6C5F]">
+                      No delivery address available.
+                    </p>
+                  )}
+              </div>
+            </section>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-[#E0D9CF] pt-5">
+            <div>
+              <p className="text-[10px] tracking-[0.15em] text-[#8A6C5F]">
+                ORDER TOTAL
+              </p>
+              <p className="mt-1 font-serif text-3xl">
+                {formatPrice(order.totalAmount)}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="border border-[#BFA38A] px-5 py-3 text-[10px] font-semibold tracking-[0.13em] transition hover:bg-[#F0E7DD]"
+            >
+              CLOSE DETAILS
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CancelOrderModal({ order, onConfirm, onClose, loading }) {
+  if (!order) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-[#1D120E]/65 p-4 backdrop-blur-md"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !loading) onClose();
+      }}
+    >
+      <section
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="cancel-order-title"
+        className="relative w-full max-w-md overflow-hidden border border-red-200 bg-[#FFFCFA] shadow-[0_25px_100px_rgba(0,0,0,0.4)]"
+      >
+        <div className="h-2 bg-red-600" />
+
+        <div className="p-6 text-center sm:p-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600">
+            <AlertTriangle size={29} strokeWidth={1.7} />
+          </div>
+
+          <p className="mt-5 text-[10px] font-semibold tracking-[0.25em] text-red-600">
+            PLEASE CONFIRM
+          </p>
+
+          <h2
+            id="cancel-order-title"
+            className="mt-2 font-serif text-3xl text-[#544339]"
+          >
+            Cancel this order?
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-[#78675C]">
+            Are you sure you want to cancel this order? This action cannot be
+            undone once the cancellation is completed.
+          </p>
+
+          <div className="mt-6 border border-red-100 bg-red-50/70 p-4 text-left">
+            <p className="text-[10px] tracking-[0.15em] text-red-600">
+              ORDER REFERENCE
+            </p>
+            <p className="mt-1 break-all text-sm font-semibold text-[#544339]">
+              #{order._id}
+            </p>
+            <p className="mt-2 text-sm text-[#544339]">
+              Order total: {formatPrice(order.totalAmount)}
+            </p>
+          </div>
+
+          <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onClose}
+              className="order-2 border border-[#BFA38A] px-4 py-3.5 text-[10px] font-semibold tracking-[0.12em] text-[#544339] transition hover:bg-[#F0E7DD] disabled:opacity-50 sm:order-1"
+            >
+              KEEP MY ORDER
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onConfirm}
+              className="order-1 inline-flex items-center justify-center gap-2 bg-red-600 px-4 py-3.5 text-[10px] font-semibold tracking-[0.12em] text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:order-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  CANCELLING...
+                </>
+              ) : (
+                <>
+                  <XCircle size={15} />
+                  YES, CANCEL ORDER
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function Orders() {
   const location = useLocation();
@@ -250,18 +518,18 @@ function Orders() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(location.state?.message || "");
   const [isError, setIsError] = useState(false);
-  const [cancellingId, setCancellingId] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancellingId, setCancellingId] = useState("");
 
   const fetchOrders = async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
-
       setIsError(false);
 
       const response = await getCustomerOrders();
-      console.log("CUSTOMER ORDERS:", JSON.stringify(response.data, null, 2));
-      const result = response.data;
+      const result = response?.data ?? response;
 
       const data = Array.isArray(result)
         ? result
@@ -291,21 +559,24 @@ function Orders() {
     fetchOrders();
   }, []);
 
-  const handleCancelOrder = async (orderId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this order?",
-    );
-
-    if (!confirmed) return;
+  const handleCancelOrder = async () => {
+    if (!cancelTarget?._id) return;
 
     try {
-      setCancellingId(orderId);
+      setCancellingId(cancelTarget._id);
       setMessage("");
       setIsError(false);
 
-      const response = await cancelOrder(orderId);
+      const response = await cancelOrder(cancelTarget._id);
 
-      setMessage(response.message || "Order cancelled successfully.");
+      setMessage(
+        response?.data?.message ||
+          response?.message ||
+          "Order cancelled successfully.",
+      );
+
+      setCancelTarget(null);
+      setSelectedOrder(null);
 
       await fetchOrders();
     } catch (error) {
@@ -323,11 +594,9 @@ function Orders() {
       <main className="flex min-h-[70vh] items-center justify-center bg-[#F8F4EE] px-4">
         <div className="text-center">
           <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-2 border-[#E0D9CF] border-t-[#544339]" />
-
           <p className="font-serif text-xl text-[#544339]">
             Preparing your orders
           </p>
-
           <p className="mt-2 text-xs tracking-wider text-[#8A6C5F]">
             PLEASE WAIT A MOMENT
           </p>
@@ -339,22 +608,17 @@ function Orders() {
   return (
     <main className="min-h-screen bg-[#F8F4EE] px-4 py-10 text-[#544339] sm:px-6 sm:py-14">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
         <header className="mb-10 text-center sm:mb-12">
           <p className="text-[10px] tracking-[0.35em] text-[#8A6C5F]">
             YOUR ÉLORA EXPERIENCE
           </p>
-
           <h1 className="mt-4 font-serif text-4xl sm:text-5xl">My Orders</h1>
-
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#8A6C5F]">
             Every order, thoughtfully brought together in one place.
           </p>
-
           <div className="mx-auto mt-6 h-px w-16 bg-[#BFA38A]" />
         </header>
 
-        {/* Message */}
         {message && (
           <div
             role="status"
@@ -365,7 +629,6 @@ function Orders() {
             }`}
           >
             <span className="flex-1">{message}</span>
-
             <button
               type="button"
               onClick={() => setMessage("")}
@@ -377,13 +640,11 @@ function Orders() {
           </div>
         )}
 
-        {/* Orders heading */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[10px] tracking-[0.2em] text-[#8A6C5F]">
               ORDER HISTORY
             </p>
-
             <h2 className="mt-1 font-serif text-2xl">
               {orders.length} {orders.length === 1 ? "Order" : "Orders"}
             </h2>
@@ -400,20 +661,16 @@ function Orders() {
           </button>
         </div>
 
-        {/* Empty state */}
         {orders.length === 0 ? (
           <section className="border border-[#E0D9CF] bg-[#FCFAF6] px-6 py-14 text-center sm:py-20">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#E0D9CF]/40 text-[#8A6C5F]">
               <ShoppingBag size={32} strokeWidth={1.2} />
             </div>
-
             <h2 className="mt-6 font-serif text-3xl">Nothing here just yet</h2>
-
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#8A6C5F]">
               Your next favourite find could be waiting for you. Explore our
               collection and discover your style.
             </p>
-
             <Link
               to="/products"
               className="mt-7 inline-flex items-center justify-center gap-3 bg-[#544339] px-7 py-4 text-[10px] tracking-[0.17em] text-[#F8F4EE] transition hover:bg-[#6B5145]"
@@ -422,222 +679,78 @@ function Orders() {
             </Link>
           </section>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {orders.map((order) => {
               const status = order.orderStatus || "processing";
-              const shipping = order.shippingAddress;
-
-              const canCancel = ["placed", "confirmed"].includes(
-                status.toLowerCase(),
-              );
+              const normalized = normalizeStatus(status);
+              const canCancel = ["placed", "confirmed"].includes(normalized);
 
               return (
                 <article
                   key={order._id}
-                  className="overflow-hidden border border-[#E0D9CF] bg-[#FCFAF6] shadow-[0_8px_30px_rgba(84,67,57,0.04)]"
+                  className="border border-[#E0D9CF] bg-[#FCFAF6] shadow-[0_8px_30px_rgba(84,67,57,0.04)] transition hover:border-[#CBB49E]"
                 >
-                  {/* Order top bar */}
-                  <div className="flex flex-col gap-4 border-b border-[#E0D9CF] bg-[#F3E8D3]/50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#E0D9CF]/60 text-[#8A6C5F]">
-                        <Package size={19} strokeWidth={1.4} />
+                  <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-[#F0E7DD] text-[#8A6C5F]">
+                        <Package size={22} strokeWidth={1.4} />
                       </div>
 
                       <div className="min-w-0">
                         <p className="text-[9px] tracking-[0.2em] text-[#8A6C5F]">
                           ORDER REFERENCE
                         </p>
-
-                        <p className="mt-1 break-all text-sm font-medium">
+                        <p className="mt-1 break-all text-sm font-semibold">
                           #{order._id}
                         </p>
-
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[#8A6C5F]">
+                        <p className="mt-2 flex items-center gap-1.5 text-xs text-[#8A6C5F]">
                           <CalendarDays size={13} />
                           {formatDate(order.createdAt)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <div className="flex flex-col gap-3 sm:items-end">
                       <span
-                        className={`inline-flex items-center gap-2 border px-3 py-2 text-[10px] tracking-wide ${getStatusStyle(status)}`}
+                        className={`inline-flex w-fit items-center gap-2 border px-3 py-2 text-[10px] font-semibold uppercase tracking-wide ${getStatusStyle(status)}`}
                       >
-                        {status.toLowerCase() === "delivered" ? (
-                          <CheckCircle2 size={14} />
-                        ) : status.toLowerCase() === "shipped" ? (
-                          <Truck size={14} />
-                        ) : (
-                          <Clock3 size={14} />
-                        )}
-
-                        {status.replaceAll("_", " ").toUpperCase()}
+                        {status.replaceAll("_", " ")}
                       </span>
+
+                      <p className="font-serif text-2xl">
+                        {formatPrice(order.totalAmount)}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="p-5 sm:p-7">
-                    <OrderTracking status={status} />
-                    {/* Items */}
-                    <div>
-                      <h3 className="mb-5 font-serif text-xl">Order items</h3>
+                  <div className="flex flex-col gap-3 border-t border-[#E0D9CF] bg-[#F8F4EE]/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                    <p className="text-xs text-[#8A6C5F]">
+                      {(order.items || []).length}{" "}
+                      {(order.items || []).length === 1 ? "item" : "items"} ·{" "}
+                      {order.paymentMethod || "Payment not specified"}
+                    </p>
 
-                      <div className="divide-y divide-[#E0D9CF]">
-                        {(order.items || []).map((item, index) => {
-                          const variant = getVariant(item);
-                          const productName = getProductName(item);
-                          const image = getProductImage(item);
-
-                          const quantity = Number(item.quantity || 0);
-
-                          const unitPrice = Number(
-                            item.price ?? item.sellingPrice ?? 0,
-                          );
-
-                          const subtotal = Number(
-                            item.subtotal ?? unitPrice * quantity,
-                          );
-
-                          return (
-                            <div
-                              key={item._id || index}
-                              className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              {/* Product image + details */}
-                              <div className="flex min-w-0 items-start gap-4">
-                                <div className="h-28 w-24 shrink-0 overflow-hidden border border-[#E0D9CF] bg-[#F8F4EE]">
-                                  <img
-                                    src={getProductImage(item)}
-                                    alt={getProductName(item)}
-                                    loading="lazy"
-                                    className="h-full w-full object-cover"
-                                    onError={(event) => {
-                                      event.currentTarget.onerror = null;
-                                      event.currentTarget.src =
-                                        "/placeholder.png";
-                                    }}
-                                  />
-                                </div>
-
-                                <div className="min-w-0 pt-1">
-                                  <p className="text-sm font-medium">
-                                    {productName}
-                                  </p>
-
-                                  <p className="mt-1 text-xs text-[#8A6C5F]">
-                                    Size: {item.size || variant?.size || "-"}
-                                    {" · "}
-                                    Color: {item.color || variant?.color || "-"}
-                                  </p>
-
-                                  <p className="mt-1 text-xs text-[#8A6C5F]">
-                                    Qty: {quantity}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Price */}
-                              <div className="pl-28 sm:pl-0 sm:text-right">
-                                <p className="text-sm font-medium">
-                                  {formatPrice(subtotal)}
-                                </p>
-
-                                <p className="mt-1 text-xs text-[#8A6C5F]">
-                                  {formatPrice(unitPrice)} each
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Payment + shipping */}
-                    <div className="mt-5 grid gap-4 border-t border-[#E0D9CF] pt-6 md:grid-cols-2">
-                      <div className="border border-[#E0D9CF] p-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <CreditCard size={16} className="text-[#8A6C5F]" />
-
-                          <h3 className="text-[10px] tracking-[0.15em]">
-                            PAYMENT DETAILS
-                          </h3>
-                        </div>
-
-                        <p className="text-sm">
-                          {order.paymentMethod || "Not specified"}
-                        </p>
-
-                        <p className="mt-2 text-xs text-[#8A6C5F]">
-                          Payment status:{" "}
-                          <span className="capitalize text-[#544339]">
-                            {order.paymentStatus || "Pending"}
-                          </span>
-                        </p>
-                      </div>
-
-                      {shipping && (
-                        <div className="border border-[#E0D9CF] p-4">
-                          <div className="mb-3 flex items-center gap-2">
-                            <MapPin size={16} className="text-[#8A6C5F]" />
-
-                            <h3 className="text-[10px] tracking-[0.15em]">
-                              SHIPPING ADDRESS
-                            </h3>
-                          </div>
-
-                          <div className="text-sm leading-6">
-                            {shipping.name && <p>{shipping.name}</p>}
-
-                            {shipping.address && <p>{shipping.address}</p>}
-
-                            {(shipping.city || shipping.state) && (
-                              <p>
-                                {[shipping.city, shipping.state]
-                                  .filter(Boolean)
-                                  .join(", ")}
-
-                                {shipping.pincode
-                                  ? ` - ${shipping.pincode}`
-                                  : ""}
-                              </p>
-                            )}
-
-                            {shipping.phone && (
-                              <p className="mt-1 text-xs text-[#8A6C5F]">
-                                Phone: {shipping.phone}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Total + action */}
-                    <div className="mt-6 flex flex-col gap-4 border-t border-[#E0D9CF] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-[9px] tracking-[0.2em] text-[#8A6C5F]">
-                          ORDER TOTAL
-                        </p>
-
-                        <p className="mt-1 font-serif text-3xl">
-                          {formatPrice(order.totalAmount)}
-                        </p>
-                      </div>
-
+                    <div className="flex flex-wrap gap-3">
                       {canCancel && (
                         <button
                           type="button"
-                          onClick={() => handleCancelOrder(order._id)}
-                          disabled={cancellingId === order._id}
-                          className="inline-flex items-center justify-center gap-2 self-start border border-red-200 px-5 py-3 text-[10px] tracking-[0.12em] text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+                          onClick={() => setCancelTarget(order)}
+                          className="inline-flex items-center justify-center gap-2 border border-red-200 bg-white px-4 py-3 text-[10px] font-semibold tracking-[0.1em] text-red-700 transition hover:border-red-400 hover:bg-red-50"
                         >
                           <XCircle size={15} />
-
-                          {cancellingId === order._id
-                            ? "CANCELLING..."
-                            : "CANCEL ORDER"}
+                          CANCEL ORDER
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(order)}
+                        className="inline-flex items-center justify-center gap-2 bg-[#544339] px-5 py-3 text-[10px] font-semibold tracking-[0.12em] text-white transition hover:bg-[#6B5145]"
+                      >
+                        <Eye size={15} />
+                        VIEW DETAILS
+                        <ArrowRight size={14} />
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -646,7 +759,6 @@ function Orders() {
           </div>
         )}
 
-        {/* Bottom navigation */}
         <div className="mt-9 flex flex-wrap items-center justify-between gap-4">
           <Link
             to="/profile"
@@ -669,6 +781,24 @@ function Orders() {
           ÉLORA · YOUR EVERYDAY ELEGANCE
         </p>
       </div>
+
+      {selectedOrder && (
+        <OrderDetailsModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
+
+      {cancelTarget && (
+        <CancelOrderModal
+          order={cancelTarget}
+          loading={cancellingId === cancelTarget._id}
+          onClose={() => {
+            if (!cancellingId) setCancelTarget(null);
+          }}
+          onConfirm={handleCancelOrder}
+        />
+      )}
     </main>
   );
 }

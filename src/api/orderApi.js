@@ -81,12 +81,16 @@ export const getAdminOrderById = async (orderId) => {
 // ========================================
 // ADMIN - UPDATE ORDER STATUS
 // ========================================
+
 export const updateOrderStatus = async (orderId, status) => {
+  const normalizedStatus = String(status).trim().toLowerCase();
+
   const response = await axios.put(
     `${ADMIN_ORDER_URL}/${orderId}/status`,
-    { status },
+    { status: normalizedStatus },
     getAuthConfig(),
   );
 
   return response.data;
 };
+

@@ -41,15 +41,15 @@ function DashboardHome() {
 
       if (results.every((result) => result.status === "rejected")) {
         setError(
-          "Dashboard data load ചെയ്യാൻ കഴിഞ്ഞില്ല. Login, API എന്നിവ പരിശോധിക്കുക.",
+          "Unable to load dashboard data. Please check your login and API connection.",
         );
       } else if (results.some((result) => result.status === "rejected")) {
         setError(
-          "ചില dashboard വിവരങ്ങൾ load ആയില്ല. API connection പരിശോധിക്കുക.",
+          "Some dashboard information could not be loaded. Please check the API connection."
         );
       }
     } catch {
-      setError("Dashboard load ചെയ്യാൻ കഴിഞ്ഞില്ല.");
+      setError("Unable to load the dashboard.");
     } finally {
       setLoading(false);
       setRefreshing(false);

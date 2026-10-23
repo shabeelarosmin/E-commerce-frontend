@@ -36,7 +36,7 @@ function Customers() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Customers load ചെയ്യാൻ കഴിഞ്ഞില്ല. Login, API route എന്നിവ പരിശോധിക്കുക.",
+          "Failed to load customers. Please check your login and API route.",
       );
     } finally {
       setLoading(false);
