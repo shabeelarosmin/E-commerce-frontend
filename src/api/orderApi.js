@@ -3,10 +3,17 @@ import axios from "axios";
 const WEBSITE_ORDER_URL = "http://localhost:8000/api/website/order";
 const ADMIN_ORDER_URL = "http://localhost:8000/api/dashboard/order";
 
-// AUTH TOKEN
-const getAuthConfig = () => ({
+// CUSTOMER AUTH TOKEN
+const getCustomerAuthConfig = () => ({
   headers: {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
+
+// ADMIN AUTH TOKEN
+const getAdminAuthConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
   },
 });
 
@@ -17,7 +24,7 @@ export const createOrder = async (orderData) => {
   const response = await axios.post(
     WEBSITE_ORDER_URL,
     orderData,
-    getAuthConfig(),
+    getCustomerAuthConfig(),
   );
 
   return response.data;
@@ -27,7 +34,7 @@ export const createOrder = async (orderData) => {
 // CUSTOMER - GET MY ORDERS
 // ========================================
 export const getCustomerOrders = async () => {
-  const response = await axios.get(WEBSITE_ORDER_URL, getAuthConfig());
+  const response = await axios.get(WEBSITE_ORDER_URL, getCustomerAuthConfig());
 
   return response.data;
 };
@@ -38,7 +45,7 @@ export const getCustomerOrders = async () => {
 export const getOrderById = async (orderId) => {
   const response = await axios.get(
     `${WEBSITE_ORDER_URL}/${orderId}`,
-    getAuthConfig(),
+    getCustomerAuthConfig(),
   );
 
   return response.data;
@@ -51,7 +58,7 @@ export const cancelOrder = async (orderId) => {
   const response = await axios.put(
     `${WEBSITE_ORDER_URL}/${orderId}/cancel`,
     {},
-    getAuthConfig(),
+    getCustomerAuthConfig(),
   );
 
   return response.data;
@@ -61,7 +68,7 @@ export const cancelOrder = async (orderId) => {
 // ADMIN - GET ALL ORDERS
 // ========================================
 export const getAllOrders = async () => {
-  const response = await axios.get(ADMIN_ORDER_URL, getAuthConfig());
+  const response = await axios.get(ADMIN_ORDER_URL, getAdminAuthConfig());
 
   return response.data;
 };
@@ -72,7 +79,7 @@ export const getAllOrders = async () => {
 export const getAdminOrderById = async (orderId) => {
   const response = await axios.get(
     `${ADMIN_ORDER_URL}/${orderId}`,
-    getAuthConfig(),
+    getAdminAuthConfig(),
   );
 
   return response.data;
@@ -81,16 +88,14 @@ export const getAdminOrderById = async (orderId) => {
 // ========================================
 // ADMIN - UPDATE ORDER STATUS
 // ========================================
-
 export const updateOrderStatus = async (orderId, status) => {
   const normalizedStatus = String(status).trim().toLowerCase();
 
   const response = await axios.put(
     `${ADMIN_ORDER_URL}/${orderId}/status`,
     { status: normalizedStatus },
-    getAuthConfig(),
+    getAdminAuthConfig(),
   );
 
   return response.data;
 };
-

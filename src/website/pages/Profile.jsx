@@ -10,10 +10,10 @@ import {
   LogOut,
   ArrowRight,
   ShieldCheck,
-  Package,
   ChevronRight,
   ShoppingBag,
   Sparkles,
+  Users,
 } from "lucide-react";
 
 export default function Profile() {
@@ -46,6 +46,32 @@ export default function Profile() {
 
   const address = user?.address;
 
+  // Supports both old string addresses and the new object response.
+  const addressLine =
+    typeof address === "object" && address !== null
+      ? address.addressLine
+      : address;
+
+  const city =
+    typeof address === "object" && address !== null
+      ? address.city || user?.city
+      : user?.city;
+
+  const state =
+    typeof address === "object" && address !== null
+      ? address.state || user?.state
+      : user?.state;
+
+  const pinCode =
+    typeof address === "object" && address !== null
+      ? address.pinCode || user?.pincode || user?.pinCode
+      : user?.pincode || user?.pinCode;
+
+  const addressText = [addressLine, city, state, pinCode]
+    .filter(Boolean)
+    .join(", ");
+
+  // FIX: Define details before using details.map().
   const details = [
     {
       label: "Full name",
@@ -65,21 +91,16 @@ export default function Profile() {
     {
       label: "Date of birth",
       value: user?.dateOfBirth
-        ? new Date(user.dateOfBirth).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          })
+        ? new Date(user.dateOfBirth).toLocaleDateString("en-IN")
         : "Not added yet",
       icon: CalendarDays,
     },
+    {
+      label: "Gender",
+      value: user?.gender || "Not added yet",
+      icon: Users,
+    },
   ];
-
-  const addressText = address
-    ? [address.addressLine, address.city, address.state, address.pinCode]
-        .filter(Boolean)
-        .join(", ")
-    : "";
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-4 py-10 text-[#544339] sm:px-6 sm:py-16">
@@ -141,7 +162,7 @@ export default function Profile() {
           </div>
 
           <div className="space-y-10 px-5 py-8 sm:px-10 sm:py-10">
-            {/* Orders section */}
+            {/* Orders */}
             <section>
               <div className="mb-5">
                 <p className="text-[9px] tracking-[0.3em] text-[#A17E68]">
@@ -241,9 +262,9 @@ export default function Profile() {
                     {addressText || "No delivery address added yet."}
                   </p>
 
-                  {address?.pinCode && (
+                  {pinCode && (
                     <p className="mt-2 text-[9px] tracking-[0.15em] text-[#967663]">
-                      PIN CODE: {address.pinCode}
+                      PIN CODE: {pinCode}
                     </p>
                   )}
                 </div>

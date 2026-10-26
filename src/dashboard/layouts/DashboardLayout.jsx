@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 
 const menuGroups = [
   {
@@ -45,24 +45,57 @@ const pageTitles = {
 function DashboardLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  let adminUser = {};
+  const [isLoggedIn, setIsLoggedIn] = useState(() =>
+    Boolean(localStorage.getItem("adminToken")),
+  );
 
-  try {
-    adminUser = JSON.parse(localStorage.getItem("user") || "{}");
-  } catch {
-    adminUser = {};
-  }
+  const [adminUser, setAdminUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("adminUser") || "{}");
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const syncAuth = () => {
+      setIsLoggedIn(Boolean(localStorage.getItem("adminToken")));
+
+      try {
+        setAdminUser(JSON.parse(localStorage.getItem("adminUser") || "{}"));
+      } catch {
+        setAdminUser({});
+      }
+    };
+
+    window.addEventListener("auth-change", syncAuth);
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("focus", syncAuth);
+
+    return () => {
+      window.removeEventListener("auth-change", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("focus", syncAuth);
+    };
+  }, []);
 
   const adminName = adminUser.name || "Administrator";
   const adminEmail = adminUser.email || "Admin Account";
-
   const currentTitle = pageTitles[location.pathname] || "Admin Dashboard";
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+
+    setIsLoggedIn(false);
+    setAdminUser({});
+    setMobileMenuOpen(false);
+
+    window.dispatchEvent(new Event("auth-change"));
+
     navigate("/admin/login", { replace: true });
   };
 
@@ -107,7 +140,7 @@ function DashboardLayout({ children }) {
                     }`
                   }
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg text-lg transition">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg text-lg">
                     {item.icon}
                   </span>
 
@@ -130,9 +163,11 @@ function DashboardLayout({ children }) {
             ÉLORA ADMIN
           </p>
         </div>
+
         <p className="font-serif text-sm italic text-[#e3d6c5]">
           Great fashion builds confidence.
         </p>
+
         <p className="mt-2 text-[10px] text-[#a9957c]">
           Manage your store with elegance.
         </p>
@@ -176,6 +211,7 @@ function DashboardLayout({ children }) {
                 <p className="mb-1 text-[9px] font-semibold tracking-[0.22em] text-[#a18455] sm:text-[10px]">
                   ÉLORA <span className="mx-1 text-[#d5c6b3]">/</span> ADMIN
                 </p>
+
                 <h2 className="truncate font-serif text-lg font-semibold text-[#38291f] sm:text-2xl">
                   {currentTitle}
                 </h2>
@@ -183,27 +219,38 @@ function DashboardLayout({ children }) {
             </div>
 
             <div className="flex shrink-0 items-center gap-3 sm:gap-5">
-              <div className="hidden text-right sm:block">
-                <p className="text-[13px] font-semibold text-[#493426]">
-                  {adminName}
-                </p>
-                <p className="mt-1 max-w-[180px] truncate text-[11px] text-[#978777]">
-                  {adminEmail}
-                </p>
-              </div>
+              {isLoggedIn && (
+                <div className="hidden text-right sm:block">
+                  <p className="text-[13px] font-semibold text-[#493426]">
+                    {adminName}
+                  </p>
+
+                  <p className="mt-1 max-w-[180px] truncate text-[11px] text-[#978777]">
+                    {adminEmail}
+                  </p>
+                </div>
+              )}
 
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3]">
                 É
               </div>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-xl border border-[#e5d8c5] px-3 py-2.5 text-xs font-semibold text-[#493426] transition hover:border-[#493426] hover:bg-[#493426] hover:text-white sm:px-4 sm:text-sm"
-              >
-                <span className="hidden sm:inline">Logout</span>
-                <span className="sm:hidden">↗</span>
-              </button>
+              {isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-xl border border-[#e5d8c5] px-3 py-2.5 text-xs font-semibold text-[#493426] transition hover:border-[#493426] hover:bg-[#493426] hover:text-white sm:px-4 sm:text-sm"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  to="/admin/login"
+                  className="rounded-xl border border-[#e5d8c5] px-3 py-2.5 text-xs font-semibold text-[#493426] transition hover:border-[#493426] hover:bg-[#493426] hover:text-white sm:px-4 sm:text-sm"
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </header>

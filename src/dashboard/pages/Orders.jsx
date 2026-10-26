@@ -23,28 +23,60 @@ const getId = (value) => {
 const getOrderStatus = (order) =>
   String(order?.orderStatus || order?.status || "placed").toLowerCase();
 
-// Customer name: populated customerId first, then shipping address
+const getCustomerObject = (order) => {
+  const candidates = [
+    order?.customerId,
+    order?.customer,
+    order?.userId,
+    order?.user,
+  ];
+
+  return candidates.find(
+    (candidate) =>
+      candidate && typeof candidate === "object" && !Array.isArray(candidate),
+  );
+};
+
 const getOrderCustomer = (order) => {
-  const customer =
-    order?.customerId || order?.customer || order?.userId || order?.user;
+  const customer = getCustomerObject(order);
 
-  if (customer && typeof customer === "object") {
-    const name = [customer.name, customer.fullName, customer.firstName]
-      .filter(Boolean)
-      .join(" ");
-
-    if (name) return name;
-
-    if (customer.email) return customer.email;
+  if (customer) {
+    return (
+      customer.name ||
+      customer.fullName ||
+      [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
+      customer.email ||
+      "Customer name unavailable"
+    );
   }
 
-  const address = order?.shippingAddress || {};
+  return (
+    order?.customerName ||
+    order?.userName ||
+    order?.customerEmail ||
+    "Customer name unavailable"
+  );
+};
+
+const getOrderEmail = (order) => {
+  const customer = getCustomerObject(order);
+
+  return customer?.email || order?.customerEmail || order?.email || "";
+};
+
+const getOrderPhone = (order) => {
+  const customer = getCustomerObject(order);
+
+  const address =
+    order?.shippingAddress || order?.deliveryAddress || order?.address || {};
 
   return (
-    address.name ||
-    address.fullName ||
-    order?.customerName ||
-    "Customer name unavailable"
+    customer?.phone ||
+    customer?.phoneNumber ||
+    order?.customerPhone ||
+    order?.phone ||
+    (typeof address === "object" ? address.phone : "") ||
+    ""
   );
 };
 
@@ -116,13 +148,15 @@ const titleCase = (value) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-// Handle different response shapes returned by the API
 const extractOrderArray = (response) => {
   if (Array.isArray(response)) return response;
   if (Array.isArray(response?.orders)) return response.orders;
   if (Array.isArray(response?.data)) return response.data;
   if (Array.isArray(response?.data?.orders)) return response.data.orders;
   if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data?.data?.orders)) {
+    return response.data.data.orders;
+  }
 
   return [];
 };
@@ -138,29 +172,29 @@ function OrderManagement() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState("placed");
-
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusError, setStatusError] = useState("");
 
-  // FETCH ALL ORDERS
   const fetchOrders = async () => {
     try {
       setPageError("");
 
       const response = await getAllOrders();
-
       console.log("ALL ORDERS API RESPONSE:", response);
 
       const records = extractOrderArray(response);
+
       setOrders(records);
+
+      if (!records.length) {
+        console.warn("No orders extracted. Check the API response structure.");
+      }
     } catch (error) {
       console.error("Fetch orders error:", error);
 
@@ -174,19 +208,20 @@ function OrderManagement() {
     fetchOrders();
   }, []);
 
-  // SEARCH AND FILTER
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return orders.filter((order) => {
       const orderId = getId(order?._id || order?.id);
       const customer = getOrderCustomer(order);
+      const email = getOrderEmail(order);
       const status = getOrderStatus(order);
 
       const matchesSearch =
         !query ||
         orderId.toLowerCase().includes(query) ||
         customer.toLowerCase().includes(query) ||
+        email.toLowerCase().includes(query) ||
         String(order?.orderNumber || "")
           .toLowerCase()
           .includes(query);
@@ -197,7 +232,6 @@ function OrderManagement() {
     });
   }, [orders, search, statusFilter]);
 
-  // OPEN ORDER DETAILS
   const openOrderDetails = async (order) => {
     setSelectedOrder(order);
     setSelectedStatus(getOrderStatus(order));
@@ -224,12 +258,15 @@ function OrderManagement() {
       }
     } catch (error) {
       console.error("Fetch order details error:", error);
+      setStatusError(
+        error?.response?.data?.message ||
+          "Unable to load additional order details.",
+      );
     } finally {
       setDetailsLoading(false);
     }
   };
 
-  // UPDATE ORDER STATUS
   const handleUpdateStatus = async () => {
     const orderId = getId(selectedOrder?._id || selectedOrder?.id);
 
@@ -251,17 +288,12 @@ function OrderManagement() {
 
       await fetchOrders();
 
-      // Update selected order from refreshed records
-      const updatedOrder = orders.find(
-        (order) => getId(order?._id || order?.id) === orderId,
-      );
-
       setSelectedOrder((previous) =>
         previous
           ? {
               ...previous,
-              ...(updatedOrder || {}),
               orderStatus: selectedStatus,
+              status: selectedStatus,
             }
           : previous,
       );
@@ -277,6 +309,14 @@ function OrderManagement() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const allowedNextStatuses = {
+    placed: ["confirmed", "cancelled"],
+    confirmed: ["shipped", "cancelled"],
+    shipped: ["delivered"],
+    delivered: [],
+    cancelled: [],
   };
 
   return (
@@ -313,7 +353,7 @@ function OrderManagement() {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search order ID or customer..."
+            placeholder="Search order ID, customer or email..."
             className="w-full rounded-xl border border-[#E5D6C7] bg-white px-4 py-3 text-sm outline-none focus:border-[#8A6C5F]"
           />
 
@@ -359,78 +399,96 @@ function OrderManagement() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#E8DCCF]">
-            {filteredOrders.map((order) => {
-              const orderId = getId(order?._id || order?.id);
-              const status = getOrderStatus(order);
-
-              return (
-                <article key={orderId} className="p-5 sm:p-7">
-                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A87845]">
-                        Order Reference
-                      </p>
-
-                      <h2 className="mt-2 font-serif text-xl">
-                        #{order?.orderNumber || orderId.slice(-8).toUpperCase()}
-                      </h2>
-
-                      <p className="mt-1 text-sm text-[#967E6E]">
-                        {getOrderCustomer(order)}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`inline-flex w-fit items-center rounded-full border px-3 py-1.5 text-xs ${statusClass(status)}`}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left">
+              <thead className="bg-[#F7F1E8]">
+                <tr>
+                  {[
+                    "Order ID",
+                    "Customer",
+                    "Date",
+                    "Order Status",
+                    "Payment",
+                    "Amount",
+                    "Details",
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      className="px-5 py-4 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#967E6E]"
                     >
-                      ● &nbsp; {titleCase(status)}
-                    </span>
-                  </div>
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-                  <div className="mt-5 grid gap-4 border-y border-[#E8DCCF] py-5 sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-[#967E6E]">Order Amount</p>
-                      <p className="mt-2 text-lg font-semibold">
-                        {formatPrice(getOrderAmount(order))}
-                      </p>
-                    </div>
+              <tbody className="divide-y divide-[#E8DCCF]">
+                {filteredOrders.map((order) => {
+                  const orderId = getId(order?._id || order?.id);
+                  const status = getOrderStatus(order);
 
-                    <div>
-                      <p className="text-xs text-[#967E6E]">Payment Method</p>
-                      <p className="mt-2 text-sm">
-                        {titleCase(order?.paymentMethod || "COD")}
-                      </p>
-                    </div>
+                  return (
+                    <tr key={orderId} className="hover:bg-[#FBF7F1]">
+                      <td className="px-5 py-4">
+                        <span className="font-mono text-xs">
+                          {order?.orderNumber ||
+                            orderId.slice(-8).toUpperCase()}
+                        </span>
+                      </td>
 
-                    <div>
-                      <p className="text-xs text-[#967E6E]">Order Date</p>
-                      <p className="mt-2 text-sm">
+                      <td className="px-5 py-4">
+                        <div className="font-medium">
+                          {getOrderCustomer(order)}
+                        </div>
+
+                        {getOrderEmail(order) && (
+                          <div className="mt-1 text-xs text-[#967E6E]">
+                            {getOrderEmail(order)}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-5 py-4 text-sm">
                         {order?.createdAt
                           ? new Date(order.createdAt).toLocaleDateString(
                               "en-IN",
                             )
                           : "—"}
-                      </p>
-                    </div>
-                  </div>
+                      </td>
 
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-[#967E6E]">
-                      {getOrderItems(order).length} item type(s)
-                    </p>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1.5 text-xs ${statusClass(status)}`}
+                        >
+                          {titleCase(status)}
+                        </span>
+                      </td>
 
-                    <button
-                      type="button"
-                      onClick={() => openOrderDetails(order)}
-                      className="rounded-lg border border-[#DDC8B4] px-5 py-2.5 text-xs transition hover:bg-[#F5EEE4]"
-                    >
-                      View Details ↗
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+                      <td className="px-5 py-4 text-sm">
+                        <div>{titleCase(order?.paymentMethod || "COD")}</div>
+                        <div className="mt-1 text-xs text-[#967E6E]">
+                          {titleCase(order?.paymentStatus || "pending")}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold">
+                        {formatPrice(getOrderAmount(order))}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => openOrderDetails(order)}
+                          className="whitespace-nowrap rounded-lg border border-[#DDC8B4] px-4 py-2 text-xs transition hover:bg-[#F5EEE4]"
+                        >
+                          View Details ↗
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -495,14 +553,34 @@ function OrderManagement() {
                 </p>
               )}
 
+              {statusError && (
+                <p role="alert" className="text-sm text-red-700">
+                  {statusError}
+                </p>
+              )}
+
               <section>
                 <h3 className="mb-4 font-serif text-lg">Order Summary</h3>
 
                 <div className="grid gap-4 rounded-xl border border-[#E8DCCF] p-4 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs text-[#967E6E]">Order ID</p>
+                    <p className="text-xs text-[#967E6E]">Customer</p>
+                    <p className="mt-1 text-sm font-medium">
+                      {getOrderCustomer(selectedOrder)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-[#967E6E]">Email</p>
                     <p className="mt-1 break-all text-sm">
-                      {getId(selectedOrder?._id || selectedOrder?.id) || "—"}
+                      {getOrderEmail(selectedOrder) || "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-[#967E6E]">Phone</p>
+                    <p className="mt-1 text-sm">
+                      {getOrderPhone(selectedOrder) || "—"}
                     </p>
                   </div>
 
@@ -613,21 +691,15 @@ function OrderManagement() {
                     {getAddress(selectedOrder) || "Address not available"}
                   </p>
 
-                  {(selectedOrder?.customerId?.email ||
-                    selectedOrder?.customer?.email) && (
+                  {getOrderEmail(selectedOrder) && (
                     <p className="mt-2 text-sm text-[#967E6E]">
-                      Email:{" "}
-                      {selectedOrder?.customerId?.email ||
-                        selectedOrder?.customer?.email}
+                      Email: {getOrderEmail(selectedOrder)}
                     </p>
                   )}
 
-                  {(selectedOrder?.customerId?.phone ||
-                    selectedOrder?.customer?.phone) && (
+                  {getOrderPhone(selectedOrder) && (
                     <p className="mt-2 text-sm text-[#967E6E]">
-                      Phone:{" "}
-                      {selectedOrder?.customerId?.phone ||
-                        selectedOrder?.customer?.phone}
+                      Phone: {getOrderPhone(selectedOrder)}
                     </p>
                   )}
                 </div>
@@ -657,7 +729,7 @@ function OrderManagement() {
                 <h3 className="font-semibold">Update Order Status</h3>
 
                 <p className="mt-1 text-xs leading-5 text-[#967E6E]">
-                  Update the order through the permitted status sequence.
+                  Select an available next status for this order.
                 </p>
 
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -676,13 +748,7 @@ function OrderManagement() {
                     </option>
 
                     {(
-                      {
-                        placed: ["confirmed"],
-                        confirmed: ["shipped"],
-                        shipped: ["delivered"],
-                        delivered: [],
-                        cancelled: [],
-                      }[getOrderStatus(selectedOrder)] || []
+                      allowedNextStatuses[getOrderStatus(selectedOrder)] || []
                     ).map((status) => (
                       <option key={status} value={status}>
                         {titleCase(status)}
@@ -706,12 +772,6 @@ function OrderManagement() {
                 {statusMessage && (
                   <p role="status" className="mt-3 text-sm text-green-700">
                     {statusMessage}
-                  </p>
-                )}
-
-                {statusError && (
-                  <p role="alert" className="mt-3 text-sm text-red-700">
-                    {statusError}
                   </p>
                 )}
               </section>

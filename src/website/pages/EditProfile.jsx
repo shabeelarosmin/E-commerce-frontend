@@ -8,8 +8,9 @@ import {
   CalendarDays,
   MapPin,
   Save,
-  Eye,
 } from "lucide-react";
+
+import { updateProfile } from "../../api/profileApi";
 
 const initialForm = {
   name: "",
@@ -31,21 +32,22 @@ const inputClass =
 
 function EditProfile() {
   const navigate = useNavigate();
+
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!localStorage.getItem("token")) {
       navigate("/login", { replace: true });
       return;
     }
 
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const address = user.address || {};
+
+      const address =
+        user.address && typeof user.address === "object" ? user.address : {};
 
       setForm({
         name: user.name || "",
@@ -55,10 +57,12 @@ function EditProfile() {
           ? new Date(user.dateOfBirth).toISOString().slice(0, 10)
           : "",
         gender: user.gender || "",
-        address: address.addressLine || "",
-        city: address.city || "",
-        state: address.state || "",
-        pinCode: address.pinCode || "",
+        address:
+          address.addressLine ||
+          (typeof user.address === "string" ? user.address : ""),
+        city: address.city || user.city || "",
+        state: address.state || user.state || "",
+        pinCode: address.pinCode || user.pincode || user.pinCode || "",
       });
     } catch {
       setMessage("Unable to load your saved profile.");
@@ -67,7 +71,11 @@ function EditProfile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSave = async (e) => {
@@ -82,42 +90,37 @@ function EditProfile() {
     setLoading(true);
 
     try {
-      /*
-       * Connect your backend profile-update API here.
-       * Do not show success until the server confirms the update.
-       *
-       * Example:
-       * const response = await axios.put(
-       *   "http://localhost:8000/api/website/auth/profile",
-       *   {
-       *     name: form.name,
-       *     email: form.email,
-       *     phone: form.phone,
-       *     dateOfBirth: form.dateOfBirth || null,
-       *     gender: form.gender,
-       *     address: {
-       *       addressLine: form.address,
-       *       city: form.city,
-       *       state: form.state,
-       *       pinCode: form.pinCode,
-       *     },
-       *   },
-       *   {
-       *     headers: {
-       *       Authorization: `Bearer ${localStorage.getItem("token")}`,
-       *     },
-       *   }
-       * );
-       *
-       * localStorage.setItem("user", JSON.stringify(response.data.user));
-       */
+      const response = await updateProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        dateOfBirth: form.dateOfBirth || null,
+        gender: form.gender,
+        address: form.address.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pinCode: form.pinCode,
+      });
 
-      setMessage(
-        "Your form is ready. Connect the profile-update API to save changes.",
-      );
+      const updatedUser = response.user;
+
+      if (!updatedUser) {
+        throw new Error("The server did not return the updated profile.");
+      }
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      setMessage("Profile updated successfully!");
+
+      navigate("/profile", {
+        replace: true,
+        state: { profileUpdated: true },
+      });
     } catch (error) {
       setMessage(
-        error.response?.data?.message || "Unable to update your profile.",
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to update your profile.",
       );
     } finally {
       setLoading(false);
@@ -139,7 +142,9 @@ function EditProfile() {
           <p className="text-[10px] tracking-[0.32em] text-[#8A6C5F]">
             YOUR ÉLORA ACCOUNT
           </p>
+
           <h1 className="mt-3 font-serif text-4xl sm:text-5xl">Edit profile</h1>
+
           <p className="mt-3 text-sm leading-6 text-[#8A6C5F]">
             Keep your personal details and delivery information up to date.
           </p>
@@ -364,4 +369,5 @@ function EditProfile() {
     </main>
   );
 }
+
 export default EditProfile;

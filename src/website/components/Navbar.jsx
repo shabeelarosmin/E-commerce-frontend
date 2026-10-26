@@ -9,12 +9,14 @@ import {
   ArrowRight,
   Sparkles,
   LogOut,
+  Heart,
 } from "lucide-react";
 
 function Navbar() {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+
   const [isLoggedIn, setIsLoggedIn] = useState(() =>
     Boolean(localStorage.getItem("token")),
   );
@@ -26,13 +28,8 @@ function Navbar() {
       setIsLoggedIn(Boolean(localStorage.getItem("token")));
     };
 
-    // Update navbar after login/logout in this tab.
     window.addEventListener("auth-change", syncAuth);
-
-    // Update navbar when localStorage changes in another tab.
     window.addEventListener("storage", syncAuth);
-
-    // Sync again when the page becomes active.
     window.addEventListener("focus", syncAuth);
 
     return () => {
@@ -91,7 +88,7 @@ function Navbar() {
       </div>
 
       <div className="mx-auto max-w-[1600px] px-4 sm:px-7 lg:px-12">
-        <div className="flex min-h-[82px] items-center justify-between gap-3 sm:min-h-[94px]">
+        <div className="flex min-h-[82px] items-center justify-between gap-2 sm:min-h-[94px]">
           {/* Logo and mobile menu */}
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -115,18 +112,18 @@ function Navbar() {
               to="/"
               onClick={closeMenus}
               aria-label="ÉLORA Home"
-              className="group flex items-center gap-2.5 sm:gap-3"
+              className="group flex items-center gap-2 sm:gap-3"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3] sm:h-14 sm:w-14">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#c5a46d]/60 bg-[#493426] font-serif text-lg text-[#f5e4c3] sm:h-14 sm:w-14">
                 É
               </div>
 
               <span className="flex flex-col items-start">
-                <span className="font-serif text-[27px] font-bold leading-none tracking-[2px] text-[#493426] transition-colors group-hover:text-[#8A6C5F] sm:text-[35px] sm:tracking-[3px] lg:text-[39px]">
+                <span className="font-serif text-[24px] font-bold leading-none tracking-[2px] text-[#493426] transition-colors group-hover:text-[#8A6C5F] sm:text-[35px] sm:tracking-[3px] lg:text-[39px]">
                   ÉLORA
                 </span>
 
-                <span className="mt-1.5 whitespace-nowrap text-[6px] font-semibold uppercase tracking-[1.6px] text-[#967D6D] sm:text-[8px] sm:tracking-[2.5px]">
+                <span className="mt-1.5 whitespace-nowrap text-[6px] font-semibold uppercase tracking-[1.2px] text-[#967D6D] sm:text-[8px] sm:tracking-[2.5px]">
                   Your everyday elegance
                 </span>
               </span>
@@ -134,13 +131,13 @@ function Navbar() {
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden items-center justify-center gap-6 md:flex lg:gap-10">
+          <nav className="hidden items-center justify-center gap-5 md:flex lg:gap-8">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
                 onClick={closeMenus}
-                className="group relative py-3 text-[9px] font-medium tracking-[1.8px] transition-colors hover:text-[#98765F] lg:text-[10px]"
+                className="group relative whitespace-nowrap py-3 text-[9px] font-medium tracking-[1.3px] transition-colors hover:text-[#98765F] lg:text-[10px] lg:tracking-[1.8px]"
               >
                 {item.label}
 
@@ -150,7 +147,7 @@ function Navbar() {
           </nav>
 
           {/* Right-side actions */}
-          <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-1.5">
             {/* Search */}
             <button
               type="button"
@@ -158,7 +155,7 @@ function Navbar() {
                 setSearchOpen((prev) => !prev);
                 setMobileMenu(false);
               }}
-              className={`rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3 ${
+              className={`rounded-full p-2 transition hover:bg-[#F0E8DE] sm:p-3 ${
                 searchOpen ? "bg-[#F0E8DE]" : ""
               }`}
               aria-label={searchOpen ? "Close search" : "Search products"}
@@ -171,48 +168,59 @@ function Navbar() {
               )}
             </button>
 
-            {/* Profile icon */}
+            {/* Favourites */}
+            <Link
+              to={isLoggedIn ? "/favourites" : "/login"}
+              onClick={closeMenus}
+              className="flex items-center justify-center rounded-full p-2 transition hover:bg-[#F0E8DE] sm:p-3"
+              aria-label="My Favourites"
+              title="Favourites"
+            >
+              <Heart size={20} strokeWidth={1.5} />
+            </Link>
+
+            {/* Profile */}
             <Link
               to={isLoggedIn ? "/profile" : "/login"}
               onClick={closeMenus}
-              className="flex items-center justify-center rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3"
+              className="flex items-center justify-center rounded-full p-2 transition hover:bg-[#F0E8DE] sm:p-3"
               aria-label="My Account"
               title="My Account"
             >
               <UserRound size={20} strokeWidth={1.5} />
             </Link>
 
-            {/* Authentication button: only one button is shown */}
-            {isLoggedIn ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="ml-1 inline-flex shrink-0 items-center gap-1.5 border border-[#BFA38A] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-[0.8px] text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] rounded-xl"
-              >
-                <LogOut size={14} />
-                SIGN OUT
-              </button>
-            ) : (
-              <Link
-                to="/login"
-                onClick={closeMenus}
-                className="ml-1 inline-flex shrink-0 items-center gap-1.5 border border-[#544339] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-[0.8px] text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] sm:tracking-[1.2px] rounded-xl"
-              >
-                SIGN IN
-                <ArrowRight size={14} strokeWidth={1.6} />
-              </Link>
-            )}
-
             {/* Shopping bag */}
             <Link
               to="/cart"
               onClick={closeMenus}
-              className="rounded-full p-2.5 transition hover:bg-[#F0E8DE] sm:p-3"
+              className="flex items-center justify-center rounded-full p-2 transition hover:bg-[#F0E8DE] sm:p-3"
               aria-label="Shopping bag"
               title="Shopping bag"
             >
               <ShoppingBag size={20} strokeWidth={1.5} />
             </Link>
+
+            {/* Sign In / Sign Out - always last */}
+            {isLoggedIn ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-1 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#544339] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-wide text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] sm:tracking-[1px]"
+              >
+                <LogOut size={14} />
+                <span>SIGN OUT</span>
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={closeMenus}
+                className="ml-1 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#544339] bg-[#544339] px-2.5 py-2.5 text-[9px] font-semibold tracking-wide text-[#F8F4EE] transition hover:border-[#8A6C5F] hover:bg-[#8A6C5F] sm:ml-2 sm:gap-2 sm:px-4 sm:text-[10px] sm:tracking-[1px]"
+              >
+                <span>SIGN IN</span>
+                <ArrowRight size={14} strokeWidth={1.6} />
+              </Link>
+            )}
           </div>
         </div>
 
@@ -281,21 +289,40 @@ function Navbar() {
                 </Link>
               ))}
 
-              <div className="flex items-center justify-between gap-3 border-t border-[#E7DED3] pt-4">
+              {/* Mobile quick links */}
+              <div className="grid grid-cols-2 gap-3 border-t border-[#E7DED3] py-4">
+                <Link
+                  to={isLoggedIn ? "/favourites" : "/login"}
+                  onClick={closeMenus}
+                  className="flex items-center justify-center gap-2 border border-[#E7DED3] px-3 py-3 text-[10px] tracking-wide transition hover:bg-[#F0E8DE]"
+                >
+                  <Heart size={17} />
+                  FAVOURITES
+                </Link>
+
                 <Link
                   to={isLoggedIn ? "/profile" : "/login"}
                   onClick={closeMenus}
-                  className="flex items-center gap-2 rounded-full border border-[#E7DED3] px-3 py-2.5 text-[10px] tracking-wide hover:bg-[#F0E8DE]"
+                  className="flex items-center justify-center gap-2 border border-[#E7DED3] px-3 py-3 text-[10px] tracking-wide transition hover:bg-[#F0E8DE]"
                 >
-                  <UserRound size={18} />
+                  <UserRound size={17} />
                   MY ACCOUNT
+                </Link>
+
+                <Link
+                  to="/cart"
+                  onClick={closeMenus}
+                  className="flex items-center justify-center gap-2 border border-[#E7DED3] px-3 py-3 text-[10px] tracking-wide transition hover:bg-[#F0E8DE]"
+                >
+                  <ShoppingBag size={17} />
+                  MY BAG
                 </Link>
 
                 {isLoggedIn ? (
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex items-center justify-center gap-2 border border-[#BFA38A] bg-[#544339] px-4 py-3 text-[10px] font-semibold tracking-[1.2px] text-[#F8F4EE] hover:bg-[#8A6C5F]"
+                    className="flex items-center justify-center gap-2 border border-[#544339] bg-[#544339] px-3 py-3 text-[10px] font-semibold tracking-wide text-[#F8F4EE] transition hover:bg-[#8A6C5F]"
                   >
                     <LogOut size={14} />
                     SIGN OUT
@@ -304,7 +331,7 @@ function Navbar() {
                   <Link
                     to="/login"
                     onClick={closeMenus}
-                    className="flex items-center justify-center gap-2 bg-[#544339] px-4 py-3 text-[10px] font-semibold tracking-[1.2px] text-[#F8F4EE] hover:bg-[#8A6C5F]"
+                    className="flex items-center justify-center gap-2 border border-[#544339] bg-[#544339] px-3 py-3 text-[10px] font-semibold tracking-wide text-[#F8F4EE] transition hover:bg-[#8A6C5F]"
                   >
                     SIGN IN
                     <ArrowRight size={14} />

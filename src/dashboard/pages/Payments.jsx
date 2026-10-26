@@ -4,11 +4,16 @@ import axios from "axios";
 const PAYMENT_URL = "http://localhost:8000/api/dashboard/payment";
 const ORDER_URL = "http://localhost:8000/api/dashboard/order";
 
-const authConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+// Dashboard requests must use the admin token.
+const authConfig = () => {
+  const token = localStorage.getItem("adminToken");
+
+  return {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : "",
+    },
+  };
+};
 
 const money = (amount) =>
   `₹${Number(amount || 0).toLocaleString("en-IN", {
@@ -88,7 +93,9 @@ const getDate = (item) => {
 
   const parsed = new Date(date);
 
-  if (Number.isNaN(parsed.getTime())) return "Not available";
+  if (Number.isNaN(parsed.getTime())) {
+    return "Not available";
+  }
 
   return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -174,7 +181,6 @@ function readArray(response) {
   const data = response?.data?.data ?? response?.data;
 
   if (Array.isArray(data)) return data;
-
   if (Array.isArray(data?.payments)) return data.payments;
   if (Array.isArray(data?.orders)) return data.orders;
   if (Array.isArray(data?.results)) return data.results;
@@ -203,6 +209,14 @@ function Payments() {
   const [error, setError] = useState("");
 
   const fetchPayments = async (refresh = false) => {
+    if (!localStorage.getItem("adminToken")) {
+      setError("Admin token not found. Please log in to the dashboard again.");
+      setPayments([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     if (refresh) {
       setRefreshing(true);
     } else {
@@ -223,40 +237,41 @@ function Payments() {
         paymentApiError = err;
       }
 
-      // Fetch orders as well, so COD orders are not omitted
-      // when a separate payment record has not been created.
       let orders = [];
+      let orderApiError = null;
 
       try {
         const orderResponse = await axios.get(ORDER_URL, authConfig());
 
         orders = readArray(orderResponse);
-      } catch (orderError) {
-        // Payment records can still be displayed if orders
-        // cannot be loaded.
-        console.error(
-          "Could not load orders for payment fallback:",
-          orderError.response?.data || orderError.message,
-        );
+      } catch (err) {
+        orderApiError = err;
       }
 
-      // Payment API records are preferred.
-      // Add orders only when their order ID is not already present.
+      // Do not silently hide authorization errors.
+      const authError = [paymentApiError, orderApiError].find(
+        (err) => err?.response?.status === 401 || err?.response?.status === 403,
+      );
+
+      if (authError) {
+        throw authError;
+      }
+
       const paymentOrderIds = new Set(
         paymentRecords.map(getOrderId).filter((id) => id && id !== "—"),
       );
 
+      // Include orders such as COD orders that do not yet
+      // have a separate payment record.
       const missingOrderPayments = orders
         .filter((order) => {
           const id = String(order._id || order.orderId || "");
-
           return id && !paymentOrderIds.has(id);
         })
         .map(normalizeOrderAsPayment);
 
       const combined = [...paymentRecords, ...missingOrderPayments];
 
-      // Remove duplicate records using payment ID or order ID.
       const uniqueRecords = [];
       const seen = new Set();
 
@@ -283,14 +298,22 @@ function Payments() {
 
       setPayments(uniqueRecords);
 
-      if (paymentApiError && orders.length === 0) {
+      if (paymentApiError && orderApiError && uniqueRecords.length === 0) {
         throw paymentApiError;
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to load payment records. Check the payment and order APIs.",
-      );
+      const status = err.response?.status;
+
+      if (status === 401 || status === 403) {
+        setError(
+          "Admin authorization failed. Log in again and verify that the dashboard request sends the admin token.",
+        );
+      } else {
+        setError(
+          err.response?.data?.message ||
+            "Unable to load payment records. Check the payment and order APIs.",
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -299,6 +322,20 @@ function Payments() {
 
   useEffect(() => {
     fetchPayments();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSelectedPayment(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const successfulCount = payments.filter(isSuccessful).length;

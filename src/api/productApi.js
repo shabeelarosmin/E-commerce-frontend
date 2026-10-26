@@ -3,11 +3,16 @@ import axios from "axios";
 const WEBSITE_API = "http://localhost:8000/api/website/product";
 const ADMIN_API = "http://localhost:8000/api/dashboard/product";
 
-const getAuthConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+// Dashboard requests use the admin token
+const getAuthConfig = () => {
+  const token = localStorage.getItem("adminToken");
+
+  return {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : "",
+    },
+  };
+};
 
 // WEBSITE: Fetch products
 export const getWebsiteProducts = async () => {
@@ -21,7 +26,6 @@ export const getAdminProducts = async () => {
   return response.data;
 };
 
-// Alternative name for dashboard Products.jsx
 export const getProducts = getAdminProducts;
 
 // DASHBOARD: Create product

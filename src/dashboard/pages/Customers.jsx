@@ -3,6 +3,20 @@ import axios from "axios";
 
 const API_URL = "http://localhost:8000/api/dashboard/customer";
 
+const getAdminAuthConfig = () => {
+  const token = localStorage.getItem("adminToken");
+
+  if (!token) {
+    throw new Error("Admin login required. Please log in again.");
+  }
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
+
 function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,13 +30,11 @@ function Customers() {
     try {
       setError("");
 
-      if (isRefresh) setRefreshing(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      }
 
-      const response = await axios.get(API_URL, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await axios.get(API_URL, getAdminAuthConfig());
 
       const responseData = response.data?.data ?? response.data;
 
@@ -36,7 +48,8 @@ function Customers() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to load customers. Please check your login and API route.",
+          err.message ||
+          "Failed to load customers.",
       );
     } finally {
       setLoading(false);
@@ -50,11 +63,16 @@ function Customers() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setSelectedCustomer(null);
+      if (event.key === "Escape") {
+        setSelectedCustomer(null);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const getCustomerName = (customer) =>
@@ -71,11 +89,15 @@ function Customers() {
   const getAddress = (customer) => {
     const address = customer.address;
 
-    if (typeof address === "string") return address;
+    if (typeof address === "string") {
+      return address;
+    }
 
     if (address && typeof address === "object") {
       return [
+        address.addressLine,
         address.address,
+        address.street,
         address.city,
         address.state,
         address.pincode || address.postalCode,
@@ -85,6 +107,7 @@ function Customers() {
     }
 
     return [
+      customer.addressLine,
       customer.street,
       customer.city,
       customer.state,
@@ -145,7 +168,6 @@ function Customers() {
   return (
     <main className="min-h-screen bg-[#f7f3ed] px-4 py-6 sm:px-6 lg:px-9 lg:py-9">
       <div className="mx-auto max-w-[1500px] space-y-7">
-        {/* HEADER */}
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
             <p className="mb-2 text-[10px] font-extrabold tracking-[2.5px] text-[#a17b50]">
@@ -172,7 +194,6 @@ function Customers() {
           </button>
         </header>
 
-        {/* ERROR MESSAGE */}
         {error && (
           <div
             role="alert"
@@ -183,7 +204,6 @@ function Customers() {
           </div>
         )}
 
-        {/* SUMMARY CARDS */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
             symbol="♙"
@@ -208,7 +228,6 @@ function Customers() {
           />
         </section>
 
-        {/* CUSTOMER DIRECTORY */}
         <section className="overflow-hidden rounded-2xl border border-[#e9dfd3] bg-[#fffdf9] shadow-[0_8px_30px_rgba(70,48,30,0.035)]">
           <div className="flex flex-col justify-between gap-5 border-b border-[#eee5da] px-5 py-6 sm:flex-row sm:items-center sm:px-8">
             <div>
@@ -255,7 +274,6 @@ function Customers() {
             </div>
           </div>
 
-          {/* EMPTY STATE */}
           {filteredCustomers.length === 0 ? (
             <div className="px-5 py-16 text-center">
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#eadcc9] bg-[#f7efe4] font-serif text-3xl text-[#9a774f]">
@@ -288,7 +306,6 @@ function Customers() {
               )}
             </div>
           ) : (
-            /* RESPONSIVE TABLE */
             <div className="w-full overflow-x-auto">
               <table className="w-full min-w-[850px] border-collapse text-left">
                 <thead>
@@ -391,14 +408,12 @@ function Customers() {
           )}
         </section>
 
-        {/* FOOTER */}
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-[#e6dbce] pt-5 text-[10px] font-semibold tracking-[1.5px] text-[#9a8877] sm:flex-row">
           <span>ÉLORA · CUSTOMER MANAGEMENT</span>
           <span>DESIGNED WITH CARE ✦</span>
         </footer>
       </div>
 
-      {/* CUSTOMER DETAILS MODAL */}
       {selectedCustomer && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#24170f]/55 p-4 backdrop-blur-[3px]"
@@ -463,7 +478,7 @@ function Customers() {
                 </span>
               </div>
 
-              <div className="space-y-0">
+              <div>
                 <DetailRow
                   label="Email Address"
                   value={selectedCustomer.email || "Not provided"}

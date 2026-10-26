@@ -10,6 +10,20 @@ const emptyForm = {
   active: true,
 };
 
+function getAuthConfig() {
+  const token = localStorage.getItem("adminToken");
+
+  if (!token) {
+    throw new Error("Admin token missing. Please login again.");
+  }
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+}
+
 function Categories() {
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -20,22 +34,21 @@ function Categories() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const authConfig = () => ({
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-  });
-
+  // GET ALL CATEGORIES
   const fetchCategories = async () => {
     try {
       setError("");
 
-      const response = await axios.get(API_URL, authConfig());
+      const response = await axios.get(API_URL, getAuthConfig());
       const data = response.data?.data ?? response.data;
 
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load categories.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load categories.",
+      );
     } finally {
       setLoading(false);
     }
@@ -45,6 +58,7 @@ function Categories() {
     fetchCategories();
   }, []);
 
+  // HANDLE INPUT CHANGE
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -54,11 +68,13 @@ function Categories() {
     }));
   };
 
+  // RESET FORM
   const resetForm = () => {
     setForm({ ...emptyForm });
     setEditingId(null);
   };
 
+  // CREATE OR UPDATE CATEGORY
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -81,11 +97,15 @@ function Categories() {
       setSaving(true);
 
       if (editingId) {
-        await axios.put(`${API_URL}/${editingId}`, categoryData, authConfig());
+        await axios.put(
+          `${API_URL}/${editingId}`,
+          categoryData,
+          getAuthConfig(),
+        );
 
         setMessage("Category updated successfully.");
       } else {
-        await axios.post(API_URL, categoryData, authConfig());
+        await axios.post(API_URL, categoryData, getAuthConfig());
 
         setMessage("Category created successfully.");
       }
@@ -93,12 +113,17 @@ function Categories() {
       resetForm();
       await fetchCategories();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save category.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to save category.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  // EDIT CATEGORY
   const handleEdit = (category) => {
     setEditingId(category._id);
 
@@ -118,6 +143,7 @@ function Categories() {
     });
   };
 
+  // DELETE CATEGORY
   const handleDelete = async (category) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete the "${category.name}" category?`,
@@ -129,7 +155,7 @@ function Categories() {
     setError("");
 
     try {
-      await axios.delete(`${API_URL}/${category._id}`, authConfig());
+      await axios.delete(`${API_URL}/${category._id}`, getAuthConfig());
 
       setMessage("Category deleted successfully.");
 
@@ -139,10 +165,15 @@ function Categories() {
 
       await fetchCategories();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete category.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to delete category.",
+      );
     }
   };
 
+  // SEARCH CATEGORIES
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -226,7 +257,7 @@ function Categories() {
             className="flex items-start gap-3 rounded-xl border border-[#edcfca] bg-[#fff3f1] px-4 py-3 text-sm text-[#a23d32]"
           >
             <span className="font-bold">!</span>
-            {error}
+            <span>{error}</span>
           </div>
         )}
 

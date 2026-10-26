@@ -3,11 +3,19 @@ import axios from "axios";
 const WEBSITE_API = "http://localhost:8000/api/website/category";
 const ADMIN_API = "http://localhost:8000/api/dashboard/category";
 
-const getAuthConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+const getAuthConfig = () => {
+  const token = localStorage.getItem("adminToken");
+
+  if (!token) {
+    throw new Error("Admin token missing. Please login again.");
+  }
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
 
 // Website - Get categories
 export const getCategories = async () => {
